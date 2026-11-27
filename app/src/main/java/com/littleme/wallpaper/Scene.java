@@ -2,35 +2,69 @@ package com.littleme.wallpaper;
 import android.content.Context;
 import android.graphics.*;
 import java.io.IOException;
-import java.util.Calendar;
+import java.util.*;
 final class Scene {
-    private final Bitmap bg,person,pet;
-    private final Paint paint=new Paint();
-    private final RectF rect=new RectF();
-    Scene(Context c){bg=load(c,"lm_bg.png");person=load(c,"lm_man.png");pet=load(c,"lm_dog.png");paint.setFilterBitmap(false);}
-    private Bitmap load(Context c,String n){try(java.io.InputStream s=c.getAssets().open(n)){Bitmap b=BitmapFactory.decodeStream(s);if(b==null)throw new IOException(n);return b;}catch(IOException e){throw new IllegalStateException("Missing artwork: "+n,e);}}
-    void draw(Canvas c,World w,int width,int height,long now){
-        if(width<=0||height<=0)return; Calendar cal=Calendar.getInstance();cal.setTimeInMillis(now);int h=cal.get(Calendar.HOUR_OF_DAY);boolean dark=h<6||h>=20;
-        c.drawColor(Color.rgb(122,99,123));float scale=Math.min(width/309f,height/553f);float left=(width-309*scale)/2f,top=height-553*scale;
-        c.save();c.translate(left,top);c.scale(scale,scale);paint.setColor(Color.WHITE);rect.set(0,0,309,553);c.drawBitmap(bg,null,rect,paint);
-        if(w.man.y<=w.dog.y){actor(c,w,w.man,now);actor(c,w,w.dog,now);}else{actor(c,w,w.dog,now);actor(c,w,w.man,now);}
-        if(dark){paint.setColor(0x33253055);c.drawRect(0,0,309,553,paint);}c.restore();
-        if(top>0&&dark){paint.setColor(0x33253055);c.drawRect(0,0,width,top,paint);}
-        if(left>0&&dark){paint.setColor(0x33253055);c.drawRect(0,top,left,height,paint);c.drawRect(width-left,top,width,height,paint);}
+    final Bitmap bg,person,pet;final Bitmap[] walk=new Bitmap[4],dogwalk=new Bitmap[4];final Map<String,Bitmap> poses=new HashMap<>();
+    final Paint p=new Paint(); final RectF dst=new RectF();final Rect src=new Rect();
+    Scene(Context c){bg=load(c,"lm_bg.png");person=load(c,"lm_man.png");pet=load(c,"lm_dog.png");for(int i=0;i<4;i++){walk[i]=load(c,"walk"+i+".png");dogwalk[i]=load(c,"dogwalk"+i+".png");}for(String n:new String[]{"wash","seat","pet","rear","dogsit","dogplay","dogsleep","dogbelly","wash0","wash1","wash2","seat0","seat1","seat2","pet0","pet1","pet2"})poses.put(n,load(c,n+".png"));p.setAntiAlias(false);p.setFilterBitmap(false);}
+    Bitmap load(Context c,String n){try(java.io.InputStream s=c.getAssets().open(n)){Bitmap b=BitmapFactory.decodeStream(s);if(b==null)throw new IOException(n);return b;}catch(IOException e){throw new IllegalStateException("Missing artwork: "+n,e);}}
+    void draw(Canvas c,World w,int width,int height,long now){if(width<=0||height<=0)return;Calendar cal=Calendar.getInstance();cal.setTimeInMillis(now);int hour=cal.get(Calendar.HOUR_OF_DAY);int shade=hour<6||hour>=21?46:hour>=19||hour<8?18:0;
+      c.drawColor(Color.rgb(119,96,118));float s=Math.min(width/309f,height/553f),left=(width-309*s)/2,top=height-553*s;
+      c.save();c.translate(left,top);c.scale(s,s);p.setColor(Color.WHITE);dst.set(0,0,309,553);c.drawBitmap(bg,null,dst,p);environment(c,w,now);
+      // Paint upper-room actors before foreground objects, then lower room. Feet always sort in depth order.
+      if(w.man.y<=w.dog.y){actor(c,w,w.man,now);actor(c,w,w.dog,now);}else{actor(c,w,w.dog,now);actor(c,w,w.man,now);}
+      if(w.man.route.isEmpty()&&!w.man.away&&w.man.node==World.SOFA)sofaFront(c);
+      if(w.dog.route.isEmpty()&&w.dog.node==World.SOFA)sofaFront(c);
+      if(shade>0){p.setColor((shade<<24)|0x25304d);c.drawRect(0,0,309,553,p);}c.restore();
+      if(shade>0){p.setColor((shade<<24)|0x25304d);if(top>0)c.drawRect(0,0,width,top,p);if(left>0){c.drawRect(0,top,left,height,p);c.drawRect(width-left,top,width,height,p);}}
     }
-    private void actor(Canvas c,World w,World.Actor a,long now){boolean human=a==w.man;if(human&&a.away)return;Bitmap b=human?person:pet;boolean moving=!a.route.isEmpty(),sleep=w.sleeping(a);String action=w.name(a);float x=Math.round(a.x),y=Math.round(a.y);if(human&&!moving&&a.node==World.BED&&sleep){x=269;y=454;}if(!human&&!moving&&a.node==w.man.node&&!w.man.away){x+=13;y+=8;}float width=human?50:34,height=width*b.getHeight()/b.getWidth();
-        c.save();c.translate(x,y);paint.setColor(0x66322429);c.drawOval(-width*.32f,-3,width*.32f,3,paint);
-        if(sleep){c.translate(0,-4);c.rotate(human?-65:-12);width*=.86f;height*=.86f;}
-        else if(!moving&&human&&(action.equals("Gaming")||action.equals("Reading")||action.equals("Relaxing")||action.equals("Playing with the dog"))){c.scale(1,.78f);}
-        else if(moving){c.translate(0,(float)Math.round(Math.sin(now/95.0)*1.8));}
-        else if(action.equals("Zoomies")){c.translate((float)Math.sin(now/130.0)*10,-(float)Math.abs(Math.sin(now/120.0))*7);}
-        c.scale(a.face,1);paint.setColor(Color.WHITE);rect.set(-width/2,-height,width/2,0);c.drawBitmap(b,null,rect,paint);c.restore();
-        if(sleep){label(c,"zZ",x+9,y-25-(float)Math.sin(now/450.0)*3);return;}
-        if(moving)return;
-        switch(action){case "Gaming": game(c,x,y);break;case "Washing dishes": bubbles(c,x,y,now);break;case "Making coffee":label(c,"~",x+9,y-45);break;case "Reading":book(c,x,y);break;case "Playing with the dog":label(c,"♥",x+14,y-48);break;case "Chasing a toy":paint.setColor(0xff935ab9);c.drawCircle(x+15+(float)Math.sin(now/300.0)*6,y-2,4,paint);break;case "Eating":label(c,"·",x+13,y-38);break;default:break;}
+    void environment(Canvas c,World w,long now){
+      // TV is permanently on the original console stand, not a replacement room.
+      poly(c,0xff29242d,69,255,110,237,110,263,69,281);poly(c,0xff494251,72,255,107,240,107,261,72,277);
+      boolean gaming=!w.man.away&&w.man.job==0&&w.man.route.isEmpty();if(gaming){poly(c,0xff55548b,73,256,106,242,106,260,73,275);int tick=(int)(now/180%15);for(int i=0;i<4;i++)rect(c,77+i*7,258-i*3+(i%2),3,2,0xffc9d4e6);rect(c,77+tick,267-tick/2,4,3,0xffeac070);rect(c,88,261,3,4,0xff91cb8c);}
+      // Flicker in the existing fireplace, steam from chimney, subtle window stars.
+      int flame=(int)(now/130%4);rect(c,38,289-flame,3,8+flame,0xffffbd58);rect(c,43,285+flame,2,10-flame,0xfff86c3a);rect(c,48,288-(flame%2),2,6,0xffffd67d);
+      for(int i=0;i<3;i++){int off=(int)((now/180+i*13)%33);rect(c,32+off/3,99-off,3+i,2+i,0x329bd0d9);}
+      if(!w.man.away&&w.man.job==8&&!w.man.route.isEmpty()&&w.man.y<330)poly(c,0xff3c3034,250,276,268,287,268,316,250,307);
     }
-    private void label(Canvas c,String s,float x,float y){paint.setColor(0xffffe3be);paint.setTypeface(Typeface.MONOSPACE);paint.setTextSize(11);c.drawText(s,x,y,paint);}
-    private void game(Canvas c,float x,float y){paint.setColor(0xff252132);c.drawRoundRect(x+2,y-26,x+17,y-19,2,2,paint);paint.setColor(0xff95c2de);c.drawRect(x+5,y-24,x+7,y-22,paint);paint.setColor(0xffe7a0a4);c.drawRect(x+12,y-24,x+14,y-22,paint);}
-    private void book(Canvas c,float x,float y){paint.setColor(0xff654e38);c.drawRect(x-3,y-27,x+14,y-18,paint);paint.setColor(0xfff2d4a5);c.drawRect(x-2,y-28,x+6,y-20,paint);c.drawRect(x+7,y-28,x+15,y-20,paint);}
-    private void bubbles(Canvas c,float x,float y,long now){paint.setColor(0xffc9e5ed);for(int i=0;i<4;i++){float off=(now/90+i*5)%18;c.drawCircle(x+8+i*3,y-30-off,1+i%2,paint);}}
+    void actor(Canvas c,World w,World.Actor a,long now){boolean human=a==w.man;if(human&&a.away)return;boolean move=!a.route.isEmpty();float x=Math.round(a.x),y=Math.round(a.y);int phase=(int)(now/120%4);int face=a.face;
+      if(move){Bitmap b=human?walk[phase]:dogwalk[phase];if(human&&a.route.peek()!=null&&World.POS[a.route.peek()][1]<a.y-8&&Math.abs(World.POS[a.route.peek()][0]-a.x)<24)b=poses.get("rear");shadow(c,x,y,human?22:14);sprite(c,b,x,y,human?62:27,face,1);return;}
+      if(human){switch(a.job){
+        case 0: case 3: case 9: // same sofa, actual seated pose and foreground backrest
+          sprite(c,poses.get(a.job==0?"seat"+(now/160%3):"seat"),115,340,52,1,1);if(a.job==0){controller(c,112,305,now);}else if(a.job==3){book(c,109,306,now);}break;
+        case 1: case 2: sprite(c,poses.get(a.job==1?"wash"+(now/180%3):"wash"),61,466,63,1,1);if(a.job==1)water(c,40,439,now);else coffee(c,41,438,now);break;
+        case 4: shadow(c,169,444,24);sprite(c,poses.get("pet"+(now/210%3)),163,442,52,1,1);if(w.petting()){int off=(int)(now/220%2);rect(c,177,414+off,4,2,0xffd49a77);if(now/700%3==0)heart(c,189,398);}else ball(c,190,439);break;
+        case 6: sleepHuman(c,now);break;
+        case 5: case 11: case 13: case 14: case 15:
+          sprite(c,poses.get("seat"),145,482,53,-1,1);tableFront(c);tableAction(c,a.job,now);break;
+        case 7: sprite(c,poses.get("rear"),124,278,62,1,1);break;
+        case 10: shadow(c,x,y,24);sprite(c,walk[phase],x,y,62,face,1);rect(c,x-15,y-39-phase,5,4,0xffd8a381);break;
+        default: shadow(c,x,y,22);sprite(c,walk[1],x,y,62,face,1);break;
+      }}else{
+        if(w.petting()){sprite(c,poses.get("dogbelly"),190,452,27,1,1+(float)Math.sin(now/280.0)*.035f);return;}
+        if(w.sleeping(a)){if(a.node==World.SOFA){x=101;y=324;}else if(a.node==World.FOOT){x=202;y=482;}else{x=159;y=453;}shadow(c,x,y,15);sprite(c,poses.get("dogsleep"),x,y,19,1,1+(float)Math.sin(now/470.0)*.025f);if(now/550%4==0)zzz(c,x+8,y-24);return;}
+        if(a.job==0){float off=(float)Math.sin(now/430.0)*6;shadow(c,x+off,y,15);sprite(c,poses.get("dogplay"),x+off,y,28,face,1);ball(c,x+face*(18+(float)Math.sin(now/430.0)*6),y-1);return;}
+        if(a.job==8){float off=(float)Math.sin(now/180.0)*6;sprite(c,dogwalk[phase],x+off,y,27,face,1);return;}
+        if(a.job==6&&!w.man.away&&w.man.route.isEmpty()&&a.node==w.man.node){x+=16;y+=5;}
+        if(a.node==World.TABLE){x=151;y=495;}if(a.node==World.SOFA){x=126;y=327;}shadow(c,x,y,13);sprite(c,poses.get("dogsit"),x,y,27,face,1);if(now/550%4==1&&a.job==3)rect(c,x+3,y-23,2,2,0xffe8b48a);
+      }
+    }
+    void sleepHuman(Canvas c,long now){ // head rests on pillow, blanket moves with breathing, body stays under it
+      c.save();c.translate(282,427);c.rotate(-19);src.set(22,0,66,40);dst.set(-12,-13,10,7);p.setColor(Color.WHITE);c.drawBitmap(person,src,dst,p);c.restore();int rise=(int)(now/520%3==1?1:0);poly(c,0xffada0b6,265,430-rise,284,440,245,461,222,448);poly(c,0xffc6b8cb,265,429-rise,282,439,245,458,224,447);if(now/600%4==0)zzz(c,288,410);
+    }
+    void sofaFront(Canvas c){c.save();Path mask=path(69,322,86,333,153,296,157,328,90,363,68,350);c.clipPath(mask);p.setColor(Color.WHITE);dst.set(0,0,309,553);c.drawBitmap(bg,null,dst,p);c.restore();}
+    void tableFront(Canvas c){c.save();Path mask=path(49,483,56,477,83,470,112,470,132,477,143,490,137,503,116,514,86,515,61,507,48,495);c.clipPath(mask);p.setColor(Color.WHITE);dst.set(0,0,309,553);c.drawBitmap(bg,null,dst,p);c.restore();}
+    void tableAction(Canvas c,int job,long t){int n=(int)(t/220%3);switch(job){case 13:poly(c,0xff302a38,106,488,124,479,135,484,118,493);poly(c,0xff849ac8,105,486,105,474,123,466,123,478);rect(c,109,477+n,8,1,0xffdbe3f7);rect(c,122,486,3,2,0xffd8a381);break;case 14:rect(c,112,488,7,3,0xff3b4145);rect(c,114,483,3,5,0xff698b68);rect(c,118+n,482,9,1,0xffc59d70);break;case 15:for(int i=0;i<3;i++){poly(c,0xff6b4040,104+i*8,489-i*2,110+i*8,486-i*2,116+i*8,490-i*2,109+i*8,494-i*2);rect(c,108+i*8,489-i*2,3,2,0xffe7d8a7);}break;case 5:rect(c,116,484+n,3,4,0xffefce9a);break;case 11:rect(c,110+n*3,487,7,3,0xffb6c9a4);break;}}
+    void water(Canvas c,float x,float y,long t){int n=(int)(t/95%6);rect(c,x+4,y-10,2,7,0xffa9d6e8);for(int i=0;i<5;i++){int q=(n+i*3)%11;rect(c,x-7+i*4,y-q,2,2,0xffe8f3ef);}rect(c,x+10,y+2+(n%2),5,2,0xffd6a080);}
+    void coffee(Canvas c,float x,float y,long t){rect(c,x+8,y,6,5,0xffd5c6ae);rect(c,x+14,y+1,2,3,0xffd5c6ae);for(int i=0;i<3;i++){int q=(int)(t/180+i*5)%12;rect(c,x+10+i,y-3-q,2,2,0x77eaded6);}}
+    void controller(Canvas c,float x,float y,long t){rect(c,x-3,y+1,10,4,0xff26232b);rect(c,x-1,y+2,2,1,0xffbed0d5);rect(c,x+4,y+2,1,1,0xfff5a4a4);if(t/160%2==0)rect(c,x+6,y,3,2,0xffd4a079);}
+    void book(Canvas c,float x,float y,long t){poly(c,0xff655448,x-6,y+1,x,y-3,x+7,y,x+1,y+4);poly(c,0xfff2d5ad,x-6,y,x,y-4,x+1,y+2,x-5,y+3);poly(c,0xffdbc8a1,x,y-4,x+7,y-1,x+2,y+4,x+1,y+2);if(t/850%7==0)rect(c,x,y-5,2,6,0xfffae4c0);}
+    void ball(Canvas c,float x,float y){rect(c,x-2,y-3,5,5,0xff69417e);rect(c,x-3,y-2,7,3,0xff8d56a9);rect(c,x-1,y-2,2,2,0xffca91d2);}
+    void heart(Canvas c,float x,float y){rect(c,x-3,y,3,4,0xffe58da1);rect(c,x+1,y,3,4,0xffe58da1);rect(c,x-2,y+3,5,2,0xffe58da1);rect(c,x,y+5,1,1,0xffe58da1);}
+    void zzz(Canvas c,float x,float y){p.setColor(0xfff0ddcf);p.setTextSize(8);p.setTypeface(Typeface.MONOSPACE);c.drawText("zZ",x,y,p);}
+    void shadow(Canvas c,float x,float y,float w){p.setColor(0x55302529);c.drawOval(x-w/2,y-2,x+w/2,y+3,p);}
+    void sprite(Canvas c,Bitmap b,float x,float y,float height,int face,float breath){float width=height*b.getWidth()/b.getHeight();c.save();c.translate(Math.round(x),Math.round(y));c.scale(face,breath);dst.set(-width/2,-height,width/2,0);p.setColor(Color.WHITE);c.drawBitmap(b,null,dst,p);c.restore();}
+    void rect(Canvas c,float x,float y,float w,float h,int color){p.setColor(color);c.drawRect(Math.round(x),Math.round(y),Math.round(x+w),Math.round(y+h),p);}
+    Path path(float... xy){Path a=new Path();a.moveTo(xy[0],xy[1]);for(int i=2;i<xy.length;i+=2)a.lineTo(xy[i],xy[i+1]);a.close();return a;}
+    void poly(Canvas c,int color,float... xy){p.setColor(color);c.drawPath(path(xy),p);}
 }
