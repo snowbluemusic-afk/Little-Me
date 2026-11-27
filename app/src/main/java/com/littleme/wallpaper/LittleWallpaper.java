@@ -32,7 +32,7 @@ public final class LittleWallpaper extends WallpaperService {
         };
         private boolean interactive(){return power==null||power.isInteractive();}
         @Override public void onCreate(SurfaceHolder holder){
-            super.onCreate(holder);prefs=getSharedPreferences("world_v31",MODE_PRIVATE);settings=getSharedPreferences(SETTINGS,MODE_PRIVATE);
+            super.onCreate(holder);prefs=getSharedPreferences("world_v34",MODE_PRIVATE);settings=getSharedPreferences(SETTINGS,MODE_PRIVATE);
             long now=System.currentTimeMillis();world=new World(System.nanoTime(),Math.min(now,prefs.getLong("time",now)));
             world.man.decode(prefs.getString("man",null),true);world.dog.decode(prefs.getString("dog",null),false);
             world.setLively(settings.getBoolean(LIVELY,true));settings.registerOnSharedPreferenceChangeListener(settingsListener);

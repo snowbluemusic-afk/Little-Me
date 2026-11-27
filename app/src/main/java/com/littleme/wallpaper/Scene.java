@@ -9,7 +9,7 @@ final class Scene {
     Scene(Context c){bg=load(c,"lm_bg.png");person=load(c,"lm_man.png");pet=load(c,"lm_dog.png");for(int i=0;i<4;i++){walk[i]=load(c,"walk"+i+".png");dogwalk[i]=load(c,"dogwalk"+i+".png");}for(String n:new String[]{"wash","seat","pet","rear","dogsit","dogplay","dogsleep","dogbelly","wash0","wash1","wash2","seat0","seat1","seat2","pet0","pet1","pet2"})poses.put(n,load(c,n+".png"));p.setAntiAlias(false);p.setFilterBitmap(false);}
     Bitmap load(Context c,String n){try(java.io.InputStream s=c.getAssets().open(n)){Bitmap b=BitmapFactory.decodeStream(s);if(b==null)throw new IOException(n);return b;}catch(IOException e){throw new IllegalStateException("Missing artwork: "+n,e);}}
     void draw(Canvas c,World w,int width,int height,long now){if(width<=0||height<=0)return;Calendar cal=Calendar.getInstance();cal.setTimeInMillis(now);int hour=cal.get(Calendar.HOUR_OF_DAY);int shade=hour<6||hour>=21?46:hour>=19||hour<8?18:0;
-      c.drawColor(Color.rgb(119,96,118));float s=Math.min(width/309f,height/553f),left=(width-309*s)/2,top=height-553*s;
+      c.drawColor(bg.getPixel(0,0));float s=Math.min(width/309f,height/553f),left=(width-309*s)/2,top=height-553*s;
       c.save();c.translate(left,top);c.scale(s,s);p.setColor(Color.WHITE);dst.set(0,0,309,553);c.drawBitmap(bg,null,dst,p);environment(c,w,now);
       // Paint upper-room actors before foreground objects, then lower room. Feet always sort in depth order.
       World.Actor first=w.man.y<=w.dog.y?w.man:w.dog,second=first==w.man?w.dog:w.man;
@@ -23,7 +23,7 @@ final class Scene {
       boolean sofa=a.node==World.SOFA||a.node==World.SOFA_DOG||(!a.route.isEmpty()&&(a.route.peek()==World.SOFA||a.route.peek()==World.SOFA_DOG));
       boolean table=a.node==World.TABLE||(!a.route.isEmpty()&&a.route.peek()==World.TABLE);
       c.save();
-      if(sofa||a.y<323&&a.x>=55&&a.x<=160)c.clipOutPath(path(54,319,77,331,82,332,153,296,156,325,83,359,55,346));
+      if(sofa||a.y<323&&a.x>=55&&a.x<=160)c.clipOutPath(path(55,321,76,330,82,315,151,284,155,288,155,325,83,360,55,347));
       if(a.y<324&&a.x>143&&a.x<200)c.clipOutPath(path(158,281,171,276,181,283,182,295,174,306,173,318,161,324,151,318,150,303,147,293));
       if(table||a.y<493&&a.y>445&&a.x<160)c.clipOutPath(path(49,483,56,477,83,470,112,470,132,477,143,490,137,503,116,514,86,515,61,507,48,495));
       boolean bed=a==w.man&&(a.node==World.BED||(!a.route.isEmpty()&&a.route.peek()==World.BED));
@@ -56,23 +56,25 @@ final class Scene {
       if(human){switch(a.job){
         case 0: case 3: case 9: case 18:
           sofaPose(c,a.job,now);break;
-        case 1: case 2: sprite(c,poses.get(a.job==1?"wash"+(now/180%3):"wash"),78,453,65,1,1);if(a.job==1)water(c,40,439,now);else coffee(c,41,438,now);break;
+        case 1: case 2:
+          shadow(c,x,y,20);sprite(c,poses.get(a.job==1?"wash"+(now/180%3):"wash"),x,y,65,1,1);
+          if(a.job==1)water(c,40,439,now);else coffee(c,46,441,now);break;
         case 4: shadow(c,x,y,24);sprite(c,poses.get("pet"+(now/210%3)),x,y,52,1,1);if(w.petting()){int off=(int)(now/220%2);rect(c,177,414+off,4,2,0xffd49a77);if(now/700%3==0)heart(c,189,398);}else ball(c,190,439);break;
         case 6: sleepHuman(c,now);break;
         case 5: case 11: case 13: case 14: case 15:
           sprite(c,poses.get("seat"+(now/220%3)),x,y,57,-1,1);break;
-        case 7: sprite(c,poses.get("rear"),x,y,65,1,1+(float)Math.sin(now/600.0)*.012f);break;
+        case 7: shadow(c,x,y,22);sprite(c,poses.get("rear"),x,y,65,-1,1+(float)Math.sin(now/600.0)*.012f);break;
         case 10: stretch(c,x,y,now);break;
         default: shadow(c,x,y,24);sprite(c,walk[1],x,y,65,face,1+(float)Math.sin(now/550.0)*.012f);break;
       }}else{
         if(w.petting()){sprite(c,poses.get("dogbelly"),x,y,27,1,1+(float)Math.sin(now/280.0)*.035f);return;}
-        if(w.sleeping(a)){if(a.node==World.SOFA_DOG||a.node==World.SOFA){x=85;y=314;}else if(a.node==World.FOOT){x=a.x;y=a.y;}shadow(c,x,y,15);sprite(c,poses.get("dogsleep"),x,y,15,1,1+(float)Math.sin(now/470.0)*.025f);if(now/550%4==0)zzz(c,x+8,y-24);return;}
+        if(w.sleeping(a)){if(a.node==World.SOFA_DOG||a.node==World.SOFA){x=World.POS[World.SOFA_DOG][0];y=World.POS[World.SOFA_DOG][1];}else if(a.node==World.FOOT){x=a.x;y=a.y;}shadow(c,x,y,15);sprite(c,poses.get("dogsleep"),x,y,15,1,1+(float)Math.sin(now/470.0)*.025f);if(now/550%4==0)zzz(c,x+8,y-24);return;}
         if(a.job==0){float off=(float)Math.sin(now/430.0)*6;shadow(c,x+off,y,15);sprite(c,poses.get("dogplay"),x+off,y,28,face,1);ball(c,x+face*(18+(float)Math.sin(now/430.0)*6),y-1);return;}
         if(a.job==8){float off=(float)Math.sin(now/180.0)*6;sprite(c,dogwalk[phase],x+off,y,27,face,1);return;}
         if(a.job==6&&!w.man.away&&w.man.route.isEmpty()&&a.node==w.man.node){x+=16;y+=5;}
         if(a.job==3){shadow(c,x,y,15);c.save();c.translate(x,y);c.rotate((float)Math.sin(now/260.0)*3);sprite(c,poses.get("dogplay"),0,0,23,-1,1);c.restore();return;}
         if(a.job==11){shadow(c,x,y,14);sprite(c,poses.get("dogplay"),x,y,24,face,1);ball(c,x+face*12,y-5);return;}
-        if(a.job==10||a.node==World.SOFA_DOG){x=85;y=314;face=1;}
+        if(a.node==World.SOFA_DOG){x=World.POS[World.SOFA_DOG][0];y=World.POS[World.SOFA_DOG][1];face=1;}
         if(a.job==2){x=a.x;y=a.y;}
         if(a.job==12||a.job==6)face=w.man.x>x?1:-1;
         shadow(c,x,y,13);sprite(c,poses.get("dogsit"),x,y,26,face,1+(float)Math.sin(now/620.0)*.015f);
@@ -92,7 +94,7 @@ final class Scene {
         // Walk animation ends at the approach; the entire transfer is a sit/stand motion.
         Bitmap b=poses.get("rear");c.save();c.translate(x,y);c.rotate(-5*seated);
         src.set(0,0,b.getWidth(),(int)(b.getHeight()*(1-.28f*seated)));
-        dst.set(-19,-65+20*seated,19,0);p.setColor(Color.WHITE);c.drawBitmap(b,src,dst,p);c.restore();return;
+        dst.set(-19,-65+31*seated,19,0);p.setColor(Color.WHITE);c.drawBitmap(b,src,dst,p);c.restore();return;
       }
       if(kind==World.SIT_TABLE){
         shadow(c,x,y,20);sprite(c,seated>.45f?poses.get("seat"):walk[1],x,y,65-8*seated,-1,1);return;
@@ -105,17 +107,20 @@ final class Scene {
     void sofaPose(Canvas c,int job,long now){
       // Sofa faces the TV, so the back of the hoodie and head should be visible.
       Bitmap b=poses.get("rear");int lean=job==18?7:job==9?4:0;
-      c.save();c.translate(111,312);c.rotate(lean+(float)Math.sin(now/540.0)*(job==0?1.8f:1.1f));src.set(0,0,b.getWidth(),(int)(b.getHeight()*.72f));dst.set(-19,-45,19,0);p.setColor(Color.WHITE);c.drawBitmap(b,src,dst,p);c.restore();
-      if(job==0){float shift=(float)Math.sin(now/220.0)*1.5f;rect(c,93+shift,297+(now/160%2),7,3,0xff29262c);rect(c,95+shift,297,2,1,0xffbdced4);rect(c,90+shift,296,3,3,0xffd4a079);}
-      if(job==3)book(c,94,297,now);
+      c.save();c.translate(World.POS[World.SOFA][0],World.POS[World.SOFA][1]);c.rotate(lean+(float)Math.sin(now/540.0)*(job==0?1.8f:1.1f));src.set(0,0,b.getWidth(),(int)(b.getHeight()*.72f));dst.set(-19,-34,19,0);p.setColor(Color.WHITE);c.drawBitmap(b,src,dst,p);c.restore();
+      if(job==0){float shift=(float)Math.sin(now/220.0)*1.5f;rect(c,94+shift,305+(now/160%2),7,3,0xff29262c);rect(c,96+shift,305,2,1,0xffbdced4);rect(c,91+shift,304,3,3,0xffd4a079);}
+      if(job==3)book(c,94,305,now);
     }
     void stretch(Canvas c,float x,float y,long now){
-      shadow(c,x,y,24);Bitmap b=walk[1];sprite(c,b,x,y,65,1,1);
-      // Raised sleeve shapes and hands; shoulders stay on the reference sprite.
-      int q=(int)(now/200%6);float lift=3+(q<3?q:6-q);
-      poly(c,0xff1b1820,x-12,y-42,x-19,y-44,x-26,y-57-lift,x-21,y-61-lift,x-10,y-49);
-      poly(c,0xff29252e,x+10,y-44,x+18,y-46,x+25,y-59-lift,x+20,y-62-lift,x+9,y-50);
-      rect(c,x-26,y-64-lift,5,5,0xffd89a79);rect(c,x+20,y-65-lift,5,5,0xffd89a79);
+      shadow(c,x,y,24);
+      // Keep the existing head, torso and legs, but mask off both original arms.
+      // Draw the replacement sleeves behind the torso, so only two arms are visible.
+      int q=(int)(now/180%8);float lift=2+(q<4?q:8-q);
+      poly(c,0xff24202a,x-9,y-42,x-16,y-43,x-25,y-57-lift,x-21,y-61-lift,x-17,y-59-lift,x-8,y-47);
+      poly(c,0xff302b33,x+9,y-42,x+16,y-44,x+25,y-57-lift,x+21,y-62-lift,x+17,y-59-lift,x+8,y-47);
+      rect(c,x-25,y-65-lift,5,5,0xffd89a79);rect(c,x+20,y-66-lift,5,5,0xffd89a79);
+      c.save();c.clipPath(path(x-19,y-69,x+19,y-69,x+19,y-49,x+12,y-44,x+12,y-23,x+16,y-17,x+16,y+1,x-16,y+1,x-16,y-17,x-12,y-23,x-12,y-44,x-19,y-49));
+      sprite(c,walk[1],x,y,65,1,1);c.restore();
     }
     void sleepHuman(Canvas c,long now){ // head rests on pillow, blanket moves with breathing, body stays under it
       c.save();c.translate(287,427);c.rotate(-26);src.set(22,0,66,40);dst.set(-12,-13,10,7);p.setColor(Color.WHITE);c.drawBitmap(person,src,dst,p);c.restore();int rise=(int)(now/520%3==1?1:0);poly(c,0xffada0b6,265,430-rise,284,440,245,461,222,448);poly(c,0xffc6b8cb,265,429-rise,282,439,245,458,224,447);if(now/600%4==0)zzz(c,288,410);

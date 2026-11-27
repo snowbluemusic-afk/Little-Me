@@ -6,3 +6,6 @@ Default wallpaper pacing: ordinary human activities 8–24 seconds, dog activiti
 
 ## v0.3.3 — A new scene on wake
 Enabled by default, each screen-off/on cycle selects a visually distinct, already-settled activity scene before the next visible frame. Character placement happens offscreen only; normal animations and routing continue while visible. Time of day influences scene choice, and dog activities are paired with the human activity. The New scene on every wake switch disables this behaviour and restores continuous catch-up. Actual Samsung screen lifecycle remains to be tested; engine recreation may also select a fresh scene.
+
+## v0.3.4 — Pose and anchor cleanup
+Screenshot-driven adjustments to the sink, window, couch and dog anchors. The stretch masks the original arms before rendering raised sleeves; sofa backrest mask updated. Wallpaper fill uses the original artwork background color. Wake variety and existing routines remain. A new state store avoids old coordinates. Pixel-level alignment and stretch silhouette require on-device visual testing; this is not a new sprite pack.

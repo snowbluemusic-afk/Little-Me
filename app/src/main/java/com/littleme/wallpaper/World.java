@@ -3,7 +3,7 @@ import java.util.*;
 public final class World {
     public static final int LOUNGE=0, SOFA=1, DOOR=2, STAIRS=3, RUG=4, SINK=5, TABLE=6, BED=7, WINDOW=8, FOOT=9, HALL=10, KITCHEN=11, RUG_LEFT=12, STAIR_TOP=13, STAIR_BOTTOM=14, SOFA_ENTRY=15, SOFA_DOG=16, SNACKS=17, WINDOW_APPROACH=18, BACK_AISLE=19, SOFA_DOG_ENTRY=20, TABLE_ENTRY=21, BED_ENTRY=22, PET_SPOT=23;
     // Anchors are feet on the floor, not furniture centers. Sitting/sleeping poses have separate render anchors.
-    public static final float[][] POS={{174,347},{111,312},{257,315},{226,372},{174,439},{83,453},{144,492},{249,451},{125,268},{198,485},{191,322},{119,450},{147,427},{207,345},{236,402},{138,280},{85,314},{151,474},{151,264},{191,270},{91,282},{166,478},{204,461},{190,452}};
+    public static final float[][] POS={{174,347},{111,320},{257,315},{226,372},{174,439},{69,467},{144,492},{249,451},{148,283},{191,479},{191,322},{119,459},{147,427},{207,345},{236,402},{138,280},{85,306},{153,478},{165,278},{184,282},{91,282},{166,478},{201,461},{190,452}};
     static final int[][] EDGES={{10,13},{15},{10},{13,14},{14,9,11,12,23},{11},{21},{22},{18},{4,21,22},{0,2,19},{4,5,12,17},{4,11},{0,3},{3,4},{18,1,20},{20},{11,21},{15,8,19},{10,18},{15,16},{9,17,6},{9,7},{4}};
     public static final class Job { public final String name; public final int node,min,max,weight; Job(String n,int p,int a,int b,int w){name=n;node=p;min=a;max=b;weight=w;} }
     public static final Job[] HUMAN={new Job("Gaming",SOFA,70,240,9),new Job("Washing dishes",SINK,25,80,5),new Job("Making coffee",SINK,20,65,4),new Job("Reading",SOFA,60,190,5),new Job("Playing with the dog",RUG,35,110,8),new Job("Eating",TABLE,45,120,4),new Job("Sleeping",BED,300,1800,1),new Job("Looking outside",WINDOW,15,45,2),new Job("Going out",DOOR,180,1200,3),new Job("Relaxing",SOFA,40,150,5),new Job("Stretching",RUG,15,55,2),new Job("Tidying",TABLE,20,75,3),new Job("Thinking",FOOT,30,100,2),new Job("Working on laptop",TABLE,60,240,5),new Job("Painting miniatures",TABLE,50,180,4),new Job("Playing Magic cards",TABLE,40,140,4),new Job("Returning home",LOUNGE,10,25,0),new Job("Standing idle",RUG_LEFT,12,40,3),new Job("Lounging on sofa",SOFA,70,240,4)};
@@ -49,7 +49,7 @@ public final class World {
         }
         int d=options[random.nextInt(options.length)];
         int dest=(d==6||d==12)?companionNode(man.node):DOG[d].node;
-        if(dest==man.node&&!man.away){dest=RUG_LEFT;if(dest==man.node)dest=RUG;}
+        if(dest==man.node&&!man.away){if(d==0||d==11){dest=RUG_LEFT;}else if(d==5){dest=RUG_LEFT;}else{d=12;dest=companionNode(man.node);}if(dest==man.node)dest=RUG_LEFT;}
         placeForWake(dog,d,dest,now);
         if(d==9){long end=Math.max(man.until,dog.until);man.until=end;dog.until=end;}
     }
