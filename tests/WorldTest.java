@@ -1,0 +1,5 @@
+package com.littleme.wallpaper;
+import java.util.*;
+public class WorldTest {
+ public static void main(String[] args){long now=System.currentTimeMillis();World w=new World(53,now);Set<String> human=new HashSet<>(),dog=new HashSet<>();boolean away=false,sleep=false,movement=false;for(int i=0;i<24*60;i++){w.advance(now+i*60000L);human.add(w.name(w.man));dog.add(w.name(w.dog));away|=w.man.away;sleep|=w.sleeping(w.man);movement|=!w.man.route.isEmpty();if(!Float.isFinite(w.man.x)||!Float.isFinite(w.dog.y))throw new AssertionError("invalid position");}if(human.size()<7||dog.size()<6||!away||!sleep||!movement)throw new AssertionError("insufficient behavior "+human+dog);String encoded=w.man.encode();World copy=new World(2,w.time);copy.man.decode(encoded,true);if(!encoded.equals(copy.man.encode()))throw new AssertionError("persistence");copy.advance(w.time+7200000L);System.out.println("PASS: 24-hour simulation, "+human.size()+" human activities, "+dog.size()+" dog activities, away/sleep/movement, state round trip and catch-up");}
+}
