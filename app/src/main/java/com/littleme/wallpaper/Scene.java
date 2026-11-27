@@ -105,8 +105,8 @@ final class Scene {
     void sofaPose(Canvas c,int job,long now){
       // Sofa faces the TV, so the back of the hoodie and head should be visible.
       Bitmap b=poses.get("rear");int lean=job==18?7:job==9?4:0;
-      c.save();c.translate(111,312);c.rotate(lean);src.set(0,0,b.getWidth(),(int)(b.getHeight()*.72f));dst.set(-19,-45,19,0);p.setColor(Color.WHITE);c.drawBitmap(b,src,dst,p);c.restore();
-      if(job==0){rect(c,93,297+(now/160%2),7,3,0xff29262c);rect(c,95,297,2,1,0xffbdced4);}
+      c.save();c.translate(111,312);c.rotate(lean+(float)Math.sin(now/540.0)*(job==0?1.8f:1.1f));src.set(0,0,b.getWidth(),(int)(b.getHeight()*.72f));dst.set(-19,-45,19,0);p.setColor(Color.WHITE);c.drawBitmap(b,src,dst,p);c.restore();
+      if(job==0){float shift=(float)Math.sin(now/220.0)*1.5f;rect(c,93+shift,297+(now/160%2),7,3,0xff29262c);rect(c,95+shift,297,2,1,0xffbdced4);rect(c,90+shift,296,3,3,0xffd4a079);}
       if(job==3)book(c,94,297,now);
     }
     void stretch(Canvas c,float x,float y,long now){

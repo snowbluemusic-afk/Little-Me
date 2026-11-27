@@ -14,20 +14,35 @@ public final class World {
         public String encode(){StringBuilder r=new StringBuilder();for(int i:route){if(r.length()>0)r.append(':');r.append(i);}return node+","+job+","+face+","+x+","+y+","+away+","+until+","+r+","+dwell+","+lastJob;}
         public void decode(String s,boolean human){if(s==null)return;try{String[] p=s.split(",",-1);int n=Integer.parseInt(p[0]),j=Integer.parseInt(p[1]);if(n<0||n>=POS.length||j< -1||j>=(human?HUMAN:DOG).length)return;float xx=Float.parseFloat(p[3]),yy=Float.parseFloat(p[4]);if(!Float.isFinite(xx)||!Float.isFinite(yy))return;ArrayDeque<Integer> r=new ArrayDeque<>();if(!p[7].isEmpty())for(String k:p[7].split(":")){int z=Integer.parseInt(k);if(z<0||z>=POS.length)return;r.add(z);}node=n;job=j;face=Integer.parseInt(p[2])<0?-1:1;x=xx;y=yy;away=Boolean.parseBoolean(p[5]);until=Long.parseLong(p[6]);dwell=p.length>8?Long.parseLong(p[8]):30000;lastJob=p.length>9?Integer.parseInt(p[9]):-1;route.clear();route.addAll(r);}catch(RuntimeException ignored){}}
     }
-    public final Actor man=new Actor(RUG),dog=new Actor(RUG_LEFT); private final Random random; public long time; public boolean demo=false;
+    public final Actor man=new Actor(RUG),dog=new Actor(RUG_LEFT); private final Random random; public long time; public boolean demo=false; private boolean lively=false;
     public World(long seed,long now){random=new Random(seed);time=now;man.until=now;dog.until=now;}
     public String name(Actor a){if(a==man&&a.away)return "Out of the house";if(a.job<0)return "Wandering";return (a==man?HUMAN:DOG)[a.job].name;}
     public boolean sleeping(Actor a){return a.route.isEmpty()&&(a==man?a.job==6:a.job==1||a.job==5||a.job==7);}
     public boolean petting(){return man.job==4&&!man.away&&man.route.isEmpty()&&dog.job==9&&dog.route.isEmpty()&&dog.node==PET_SPOT;}
     static ArrayDeque<Integer> path(int start,int end){int[] prev=new int[POS.length];Arrays.fill(prev,-1);prev[start]=start;ArrayDeque<Integer> q=new ArrayDeque<>();q.add(start);while(!q.isEmpty()){int p=q.remove();if(p==end)break;for(int n:EDGES[p])if(prev[n]<0){prev[n]=p;q.add(n);}}ArrayDeque<Integer> out=new ArrayDeque<>();if(prev[end]>=0)for(int p=end;p!=start;p=prev[p])out.addFirst(p);return out;}
     private boolean night(long now){Calendar cal=Calendar.getInstance();cal.setTimeInMillis(now);int h=cal.get(Calendar.HOUR_OF_DAY);return h>=22||h<7;}
-    private long duration(Job j,boolean sleep){long d=1000L*(sleep?1200+random.nextInt(3601):j.min+random.nextInt(j.max-j.min+1));return demo?Math.max(3500,Math.min(18000,d/12)):d;}
-    private void set(Actor a,int j,int dest,long now){Job job=(a==man?HUMAN:DOG)[j];a.lastJob=a.job;a.job=j;a.dwell=duration(job,a==man&&j==6&&night(now));a.route.clear();a.route.addAll(path(a.node,dest));if(a==dog&&j==8){a.route.add(RUG_LEFT);a.route.add(RUG);a.route.add(PET_SPOT);a.route.add(RUG);}if(a.route.isEmpty())arrive(a,now);else a.until=now+a.dwell;}
+    private long duration(Actor a,int index,Job j,boolean sleep){
+        long d=1000L*(sleep?1200+random.nextInt(3601):j.min+random.nextInt(j.max-j.min+1));
+        if(demo)return Math.max(3500,Math.min(18000,d/12));
+        if(!lively)return d;
+        // A living wallpaper must be interesting during short lock-screen visits.
+        if(a==man&&index==6)return sleep?60000+random.nextInt(120001):30000+random.nextInt(30001);
+        if(a==man&&index==8)return 45000+random.nextInt(75001);
+        if(a==dog&&(index==1||index==5||index==7))return 18000+random.nextInt(27001);
+        if(a==dog&&index==8)return 4000+random.nextInt(4001);
+        return a==man?8000+random.nextInt(16001):5000+random.nextInt(13001);
+    }
+    private long livelyLimit(Actor a){if(a==man&&a.job==6)return 180000;if(a==man&&a.job==8)return 120000;if(a==dog&&sleeping(a))return 45000;return a==man?24000:18000;}
+    public void setLively(boolean enabled){
+        if(lively==enabled)return;lively=enabled;
+        if(enabled){for(Actor a:new Actor[]{man,dog}){long cap=livelyLimit(a);a.dwell=Math.min(a.dwell,cap);if(a.route.isEmpty())a.until=Math.min(a.until,time+cap);}}
+    }
+    private void set(Actor a,int j,int dest,long now){Job job=(a==man?HUMAN:DOG)[j];a.lastJob=a.job;a.job=j;a.dwell=duration(a,j,job,a==man&&j==6&&night(now));a.route.clear();a.route.addAll(path(a.node,dest));if(a==dog&&j==8){a.route.add(RUG_LEFT);a.route.add(RUG);a.route.add(PET_SPOT);a.route.add(RUG);}if(a.route.isEmpty())arrive(a,now);else a.until=now+a.dwell;}
     private void arrive(Actor a,long now){a.until=now+Math.max(1000,a.dwell);if(a==man&&a.job==8)a.away=true;}
     void choose(Actor a,long now){boolean human=a==man;Job[] jobs=human?HUMAN:DOG;boolean night=night(now);
         if(human&&a.away){a.away=false;set(a,16,LOUNGE,now);return;}
         if(!human&&man.job==4&&!man.away){set(a,9,PET_SPOT,now);return;}
-        int[] weights=new int[jobs.length];int total=0;for(int i=0;i<jobs.length;i++){int w=jobs[i].weight;if(human&&i==6)w=night?55:2;if(human&&i==8&&night)w=0;if(!human){if(man.away){if(i==6||i==10||i==12)w=0;if(i==2||i==1)w*=3;}else if(i==10){w=(man.job==0||man.job==3||man.job==9||man.job==18)?20:0;}else if(i==12){w=7;}else if(i==7&&man.job==6)w*=5;else if(i==6&&(man.job==1||man.job==2))w*=3;}if(!human&&night&&(i==1||i==5||i==7))w*=3;if(i==a.job)w/=4;weights[i]=w;total+=w;}int roll=random.nextInt(total),j=0;for(;j<weights.length-1;j++){roll-=weights[j];if(roll<0)break;}int dest=jobs[j].node;if(!human&&(j==6||j==12))dest=companionNode(man.route.isEmpty()?man.node:man.route.peekLast());set(a,j,dest,now);
+        int[] weights=new int[jobs.length];int total=0;for(int i=0;i<jobs.length;i++){int w=jobs[i].weight;if(human&&i==6)w=night?(lively?24:55):2;if(human&&i==8&&night)w=0;if(!human){if(man.away){if(i==6||i==10||i==12)w=0;if(i==2||i==1)w*=3;}else if(i==10){w=(man.job==0||man.job==3||man.job==9||man.job==18)?20:0;}else if(i==12){w=7;}else if(i==7&&man.job==6)w*=5;else if(i==6&&(man.job==1||man.job==2))w*=3;}if(!human&&night&&(i==1||i==5||i==7))w*=3;if(i==a.job)w=lively?0:w/4;weights[i]=w;total+=w;}int roll=random.nextInt(total),j=0;for(;j<weights.length-1;j++){roll-=weights[j];if(roll<0)break;}int dest=jobs[j].node;if(!human&&(j==6||j==12))dest=companionNode(man.route.isEmpty()?man.node:man.route.peekLast());set(a,j,dest,now);
         if(human&&j==4&&!dog.away&&dog.route.isEmpty())set(dog,9,PET_SPOT,now);if(human&&j==8&&dog.route.isEmpty()&&random.nextBoolean())set(dog,2,DOOR,now);if(human&&j==6&&dog.route.isEmpty()&&random.nextBoolean())set(dog,7,FOOT,now);
     }
     static int companionNode(int n){switch(n){case SOFA: return SOFA_DOG;case SINK:return KITCHEN;case TABLE:return SNACKS;case BED:return FOOT;case WINDOW:return WINDOW_APPROACH;case DOOR:return HALL;case FOOT:case BED_ENTRY:return RUG;case RUG_LEFT:return RUG;case PET_SPOT:return RUG_LEFT;default:return n==RUG?RUG_LEFT:n;}}
