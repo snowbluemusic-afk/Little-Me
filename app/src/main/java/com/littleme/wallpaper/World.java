@@ -19,6 +19,40 @@ public final class World {
     public String name(Actor a){if(a==man&&a.away)return "Out of the house";if(a.job<0)return "Wandering";return (a==man?HUMAN:DOG)[a.job].name;}
     public boolean sleeping(Actor a){return a.route.isEmpty()&&(a==man?a.job==6:a.job==1||a.job==5||a.job==7);}
     public boolean petting(){return man.job==4&&!man.away&&man.route.isEmpty()&&dog.job==9&&dog.route.isEmpty()&&dog.node==PET_SPOT;}
+    // Distinct visual groups, rather than different labels for identical poses.
+    public int visualGroup(){if(man.away)return 8;if(!man.route.isEmpty())return 9;return sceneGroup(man.job);}
+    static int sceneGroup(int j){switch(j){case 0:return 0;case 3:case 9:case 18:return 1;case 1:case 2:return 2;case 4:return 3;case 5:case 11:case 13:case 14:case 15:return 4;case 6:return 5;case 7:return 6;case 10:case 12:case 17:case 16:return 7;case 8:return 8;default:return 9;}}
+    private void placeForWake(Actor a,int j,int node,long now){
+        a.lastJob=a.job;a.job=j;a.node=node;a.x=POS[node][0];a.y=POS[node][1];a.route.clear();
+        a.away=a==man&&j==8;a.face=a==dog&&man.x<a.x?-1:1;
+        Job job=(a==man?HUMAN:DOG)[j];a.dwell=duration(a,j,job,a==man&&j==6&&night(now));a.until=now+Math.max(8000,a.dwell);
+    }
+    // Only called between display sessions. Never jump characters during visible playback.
+    public void wakeScene(long now,int previousGroup){
+        int current=visualGroup();boolean dark=night(now);
+        int[] candidates={0,1,2,3,4,5,6,7,8,9,10,12,13,14,15,18};
+        int[] weights=new int[candidates.length];int sum=0;
+        for(int i=0;i<candidates.length;i++){int j=candidates[i];int g=sceneGroup(j);
+            int v=HUMAN[j].weight;if(j==6)v=dark?18:4;if(j==8)v=dark?0:5;
+            if(g==previousGroup||g==current)v=0;weights[i]=v;sum+=v;
+        }
+        int roll=random.nextInt(sum),idx=0;for(;idx<weights.length-1;idx++){roll-=weights[idx];if(roll<0)break;}
+        int h=candidates[idx];time=now;placeForWake(man,h,HUMAN[h].node,now);
+        int[] options;
+        switch(h){
+            case 4: options=new int[]{9};break;
+            case 8: options=new int[]{2,1,5,3};break;
+            case 6: options=new int[]{7,1,5};break;
+            case 0:case 3:case 9:case 18: options=new int[]{10,1,0,5,11};break;
+            case 1:case 2: options=new int[]{3,6,12,5,0};break;
+            default: options=new int[]{0,1,2,3,5,6,7,11,12};break;
+        }
+        int d=options[random.nextInt(options.length)];
+        int dest=(d==6||d==12)?companionNode(man.node):DOG[d].node;
+        if(dest==man.node&&!man.away){dest=RUG_LEFT;if(dest==man.node)dest=RUG;}
+        placeForWake(dog,d,dest,now);
+        if(d==9){long end=Math.max(man.until,dog.until);man.until=end;dog.until=end;}
+    }
     static ArrayDeque<Integer> path(int start,int end){int[] prev=new int[POS.length];Arrays.fill(prev,-1);prev[start]=start;ArrayDeque<Integer> q=new ArrayDeque<>();q.add(start);while(!q.isEmpty()){int p=q.remove();if(p==end)break;for(int n:EDGES[p])if(prev[n]<0){prev[n]=p;q.add(n);}}ArrayDeque<Integer> out=new ArrayDeque<>();if(prev[end]>=0)for(int p=end;p!=start;p=prev[p])out.addFirst(p);return out;}
     private boolean night(long now){Calendar cal=Calendar.getInstance();cal.setTimeInMillis(now);int h=cal.get(Calendar.HOUR_OF_DAY);return h>=22||h<7;}
     private long duration(Actor a,int index,Job j,boolean sleep){

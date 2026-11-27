@@ -3,3 +3,6 @@ Native Android live wallpaper. Same house and reference-derived characters. Dedi
 
 ## v0.3.2 — Lively lock screen
 Default wallpaper pacing: ordinary human activities 8–24 seconds, dog activities 5–18 seconds (longer for naps, outings and sleeping); walking takes normal time. Disable Lively lock screen in the app for original real-time pacing. Animation stops when Android marks the wallpaper invisible and catches up on return. The frame loop retries interrupted surfaces while visible. Samsung visibility and on-device animation remain to be validated. Existing v0.3.1 world state is retained and long timers capped when lively mode is enabled.
+
+## v0.3.3 — A new scene on wake
+Enabled by default, each screen-off/on cycle selects a visually distinct, already-settled activity scene before the next visible frame. Character placement happens offscreen only; normal animations and routing continue while visible. Time of day influences scene choice, and dog activities are paired with the human activity. The New scene on every wake switch disables this behaviour and restores continuous catch-up. Actual Samsung screen lifecycle remains to be tested; engine recreation may also select a fresh scene.
