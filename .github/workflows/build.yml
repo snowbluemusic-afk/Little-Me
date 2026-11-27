@@ -35,10 +35,11 @@ jobs:
       - name: Test simulation
         run: |
           mkdir -p /tmp/littleme-test
-          javac -d /tmp/littleme-test app/src/main/java/com/littleme/wallpaper/World.java tests/WorldTest.java tests/WorldInteractionTest.java tests/WorldV3Test.java
+          javac -d /tmp/littleme-test app/src/main/java/com/littleme/wallpaper/World.java tests/WorldTest.java tests/WorldInteractionTest.java tests/WorldV3Test.java tests/WorldV31Test.java
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldInteractionTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldV3Test
+          java -cp /tmp/littleme-test com.littleme.wallpaper.WorldV31Test
       - run: gradle --no-daemon :app:assembleDebug
       - run: cp app/build/outputs/apk/debug/app-debug.apk LittleMe.apk
       - uses: actions/upload-artifact@v4
@@ -50,4 +51,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="build-${GITHUB_RUN_NUMBER}"
-          gh release create "$tag" LittleMe.apk --title "Little Me build ${GITHUB_RUN_NUMBER}" --notes 'v0.3.0 Life & Interaction: furniture depth, staircase routes, activity poses, companion routines and preview selector. Debug-signed.'
+          gh release create "$tag" LittleMe.apk --title "Little Me build ${GITHUB_RUN_NUMBER}" --notes 'v0.3.1: dedicated furniture approaches, sit/stand and jump transfers, actor-only occlusion and corrected anchors. Debug-signed.'

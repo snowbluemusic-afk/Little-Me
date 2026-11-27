@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.*;
 final class Scene {
     final Bitmap bg,person,pet;final Bitmap[] walk=new Bitmap[4],dogwalk=new Bitmap[4];final Map<String,Bitmap> poses=new HashMap<>();
-    final Paint p=new Paint(); final RectF dst=new RectF();final Rect src=new Rect();
+    final Paint p=new Paint(); final RectF dst=new RectF();final Rect src=new Rect(); int spriteAlpha=255;
     Scene(Context c){bg=load(c,"lm_bg.png");person=load(c,"lm_man.png");pet=load(c,"lm_dog.png");for(int i=0;i<4;i++){walk[i]=load(c,"walk"+i+".png");dogwalk[i]=load(c,"dogwalk"+i+".png");}for(String n:new String[]{"wash","seat","pet","rear","dogsit","dogplay","dogsleep","dogbelly","wash0","wash1","wash2","seat0","seat1","seat2","pet0","pet1","pet2"})poses.put(n,load(c,n+".png"));p.setAntiAlias(false);p.setFilterBitmap(false);}
     Bitmap load(Context c,String n){try(java.io.InputStream s=c.getAssets().open(n)){Bitmap b=BitmapFactory.decodeStream(s);if(b==null)throw new IOException(n);return b;}catch(IOException e){throw new IllegalStateException("Missing artwork: "+n,e);}}
     void draw(Canvas c,World w,int width,int height,long now){if(width<=0||height<=0)return;Calendar cal=Calendar.getInstance();cal.setTimeInMillis(now);int hour=cal.get(Calendar.HOUR_OF_DAY);int shade=hour<6||hour>=21?46:hour>=19||hour<8?18:0;
@@ -19,12 +19,18 @@ final class Scene {
     }
     void layeredActor(Canvas c,World w,World.Actor a,long now){
       if(a==w.man&&a.away)return;
+      // Clip only this actor; repainting the background here used to erase the other character.
+      boolean sofa=a.node==World.SOFA||a.node==World.SOFA_DOG||(!a.route.isEmpty()&&(a.route.peek()==World.SOFA||a.route.peek()==World.SOFA_DOG));
+      boolean table=a.node==World.TABLE||(!a.route.isEmpty()&&a.route.peek()==World.TABLE);
+      c.save();
+      if(sofa||a.y<323&&a.x>=55&&a.x<=160)c.clipOutPath(path(54,319,77,331,82,332,153,296,156,325,83,359,55,346));
+      if(a.y<324&&a.x>143&&a.x<200)c.clipOutPath(path(158,281,171,276,181,283,182,295,174,306,173,318,161,324,151,318,150,303,147,293));
+      if(table||a.y<493&&a.y>445&&a.x<160)c.clipOutPath(path(49,483,56,477,83,470,112,470,132,477,143,490,137,503,116,514,86,515,61,507,48,495));
+      boolean bed=a==w.man&&(a.node==World.BED||(!a.route.isEmpty()&&a.route.peek()==World.BED));
+      if(!bed&&a.y<485&&a.x>200&&a.y>404)c.clipOutPath(path(224,448,252,430,283,436,309,454,309,498,263,525,218,498,215,463));
       actor(c,w,a,now);
-      // Repaint furniture only over the actor's own render bounds; other actors remain independent.
-      boolean seated=a.route.isEmpty()&&(a.node==World.SOFA||a.node==World.SOFA_DOG);
-      boolean behind=a.y<320&&a.x>=65&&a.x<=155;
-      if(seated||behind){c.save();c.clipRect(a==w.man?75:a.x-27,a==w.man?245:a.y-48,a==w.man?145:a.x+27,360);sofaFront(c);c.restore();}
-      if(a==w.man&&a.route.isEmpty()&&a.node==World.TABLE){tableFront(c);tableAction(c,a.job,now);}
+      c.restore();
+      if(a==w.man&&a.route.isEmpty()&&a.node==World.TABLE)tableAction(c,a.job,now);
     }
     void environment(Canvas c,World w,long now){
       // TV is permanently on the original console stand, not a replacement room.
@@ -41,30 +47,59 @@ final class Scene {
       if(hour>=19||hour<7){p.setColor(0x20ffb45e);c.drawOval(248,377,298,423,p);}
     }
     void actor(Canvas c,World w,World.Actor a,long now){boolean human=a==w.man;if(human&&a.away)return;boolean move=!a.route.isEmpty();float x=Math.round(a.x),y=Math.round(a.y);int phase=(int)(now/120%4);int face=a.face;
-      if(move){Bitmap b=human?walk[phase]:dogwalk[phase];if(human&&a.route.peek()!=null&&World.POS[a.route.peek()][1]<a.y-8&&Math.abs(World.POS[a.route.peek()][0]-a.x)<30)b=poses.get("rear");shadow(c,x,y,human?24:14);sprite(c,b,x,y-(phase%2),human?65:26,face,1);return;}
+      if(move){
+        int to=a.route.peek(),kind=World.transition(a.node,to);
+        if(kind!=World.WALK){transfer(c,w,a,now,kind,to);return;}
+        Bitmap b=human?walk[phase]:dogwalk[phase];float dy=World.POS[to][1]-a.y,dx=World.POS[to][0]-a.x;
+        if(human&&dy< -3&&Math.abs(dy)>=Math.abs(dx)*.65f)b=poses.get("rear");
+        shadow(c,x,y,human?24:14);sprite(c,b,x,y-(phase%2),human?65:26,face,1);return;}
       if(human){switch(a.job){
         case 0: case 3: case 9: case 18:
           sofaPose(c,a.job,now);break;
         case 1: case 2: sprite(c,poses.get(a.job==1?"wash"+(now/180%3):"wash"),78,453,65,1,1);if(a.job==1)water(c,40,439,now);else coffee(c,41,438,now);break;
-        case 4: shadow(c,169,444,24);sprite(c,poses.get("pet"+(now/210%3)),163,442,52,1,1);if(w.petting()){int off=(int)(now/220%2);rect(c,177,414+off,4,2,0xffd49a77);if(now/700%3==0)heart(c,189,398);}else ball(c,190,439);break;
+        case 4: shadow(c,x,y,24);sprite(c,poses.get("pet"+(now/210%3)),x,y,52,1,1);if(w.petting()){int off=(int)(now/220%2);rect(c,177,414+off,4,2,0xffd49a77);if(now/700%3==0)heart(c,189,398);}else ball(c,190,439);break;
         case 6: sleepHuman(c,now);break;
         case 5: case 11: case 13: case 14: case 15:
-          sprite(c,poses.get("seat"+(now/220%3)),147,490,57,-1,1);break;
-        case 7: sprite(c,poses.get("rear"),125,268,65,1,1+(float)Math.sin(now/600.0)*.012f);break;
+          sprite(c,poses.get("seat"+(now/220%3)),x,y,57,-1,1);break;
+        case 7: sprite(c,poses.get("rear"),x,y,65,1,1+(float)Math.sin(now/600.0)*.012f);break;
         case 10: stretch(c,x,y,now);break;
         default: shadow(c,x,y,24);sprite(c,walk[1],x,y,65,face,1+(float)Math.sin(now/550.0)*.012f);break;
       }}else{
-        if(w.petting()){sprite(c,poses.get("dogbelly"),190,452,27,1,1+(float)Math.sin(now/280.0)*.035f);return;}
-        if(w.sleeping(a)){if(a.node==World.SOFA_DOG||a.node==World.SOFA){x=85;y=314;}else if(a.node==World.FOOT){x=202;y=482;}else{x=159;y=453;}shadow(c,x,y,15);sprite(c,poses.get("dogsleep"),x,y,15,1,1+(float)Math.sin(now/470.0)*.025f);if(now/550%4==0)zzz(c,x+8,y-24);return;}
+        if(w.petting()){sprite(c,poses.get("dogbelly"),x,y,27,1,1+(float)Math.sin(now/280.0)*.035f);return;}
+        if(w.sleeping(a)){if(a.node==World.SOFA_DOG||a.node==World.SOFA){x=85;y=314;}else if(a.node==World.FOOT){x=a.x;y=a.y;}shadow(c,x,y,15);sprite(c,poses.get("dogsleep"),x,y,15,1,1+(float)Math.sin(now/470.0)*.025f);if(now/550%4==0)zzz(c,x+8,y-24);return;}
         if(a.job==0){float off=(float)Math.sin(now/430.0)*6;shadow(c,x+off,y,15);sprite(c,poses.get("dogplay"),x+off,y,28,face,1);ball(c,x+face*(18+(float)Math.sin(now/430.0)*6),y-1);return;}
         if(a.job==8){float off=(float)Math.sin(now/180.0)*6;sprite(c,dogwalk[phase],x+off,y,27,face,1);return;}
         if(a.job==6&&!w.man.away&&w.man.route.isEmpty()&&a.node==w.man.node){x+=16;y+=5;}
-        if(a.job==3){x=112;y=481;shadow(c,x,y,15);c.save();c.translate(x,y);c.rotate((float)Math.sin(now/260.0)*3);sprite(c,poses.get("dogplay"),0,0,23,-1,1);c.restore();return;}
+        if(a.job==3){shadow(c,x,y,15);c.save();c.translate(x,y);c.rotate((float)Math.sin(now/260.0)*3);sprite(c,poses.get("dogplay"),0,0,23,-1,1);c.restore();return;}
         if(a.job==11){shadow(c,x,y,14);sprite(c,poses.get("dogplay"),x,y,24,face,1);ball(c,x+face*12,y-5);return;}
         if(a.job==10||a.node==World.SOFA_DOG){x=85;y=314;face=1;}
-        if(a.job==2){x=257;y=315;}
+        if(a.job==2){x=a.x;y=a.y;}
         if(a.job==12||a.job==6)face=w.man.x>x?1:-1;
         shadow(c,x,y,13);sprite(c,poses.get("dogsit"),x,y,26,face,1+(float)Math.sin(now/620.0)*.015f);
+      }
+    }
+    void transfer(Canvas c,World w,World.Actor a,long now,int kind,int to){
+      float t=World.progress(a),ease=t*t*(3-2*t);float x=World.POS[a.node][0]+(World.POS[to][0]-World.POS[a.node][0])*ease;
+      float y=World.POS[a.node][1]+(World.POS[to][1]-World.POS[a.node][1])*ease;
+      boolean entering=World.furniture(to),human=a==w.man;
+      float seated=entering?ease:1-ease;int job=entering?a.job:a.lastJob;
+      if(kind==World.JUMP_SOFA){
+        float jump=19*(float)Math.sin(Math.PI*t);
+        shadow(c,x,y,12);Bitmap b=t<.2f||t>.8f?poses.get("dogsit"):poses.get("dogplay");
+        sprite(c,b,x,y-jump,24,a.face,1);return;
+      }
+      if(kind==World.SIT_SOFA){
+        // Walk animation ends at the approach; the entire transfer is a sit/stand motion.
+        Bitmap b=poses.get("rear");c.save();c.translate(x,y);c.rotate(-5*seated);
+        src.set(0,0,b.getWidth(),(int)(b.getHeight()*(1-.28f*seated)));
+        dst.set(-19,-65+20*seated,19,0);p.setColor(Color.WHITE);c.drawBitmap(b,src,dst,p);c.restore();return;
+      }
+      if(kind==World.SIT_TABLE){
+        shadow(c,x,y,20);sprite(c,seated>.45f?poses.get("seat"):walk[1],x,y,65-8*seated,-1,1);return;
+      }
+      if(kind==World.BED_TRANSFER){
+        if(seated<.72f){shadow(c,x,y,20);sprite(c,walk[1],x,y,65-14*seated,a.face,1-.22f*seated);}
+        else sleepHuman(c,now);
       }
     }
     void sofaPose(Canvas c,int job,long now){
@@ -96,7 +131,7 @@ final class Scene {
     void heart(Canvas c,float x,float y){rect(c,x-3,y,3,4,0xffe58da1);rect(c,x+1,y,3,4,0xffe58da1);rect(c,x-2,y+3,5,2,0xffe58da1);rect(c,x,y+5,1,1,0xffe58da1);}
     void zzz(Canvas c,float x,float y){p.setColor(0xfff0ddcf);p.setTextSize(8);p.setTypeface(Typeface.MONOSPACE);c.drawText("zZ",x,y,p);}
     void shadow(Canvas c,float x,float y,float w){p.setColor(0x55302529);c.drawOval(x-w/2,y-2,x+w/2,y+3,p);}
-    void sprite(Canvas c,Bitmap b,float x,float y,float height,int face,float breath){float width=height*b.getWidth()/b.getHeight();c.save();c.translate(Math.round(x),Math.round(y));c.scale(face,breath);dst.set(-width/2,-height,width/2,0);p.setColor(Color.WHITE);c.drawBitmap(b,null,dst,p);c.restore();}
+    void sprite(Canvas c,Bitmap b,float x,float y,float height,int face,float breath){float width=height*b.getWidth()/b.getHeight();c.save();c.translate(Math.round(x),Math.round(y));c.scale(face,breath);dst.set(-width/2,-height,width/2,0);p.setColor(Color.WHITE);p.setAlpha(spriteAlpha);c.drawBitmap(b,null,dst,p);p.setAlpha(255);c.restore();}
     void rect(Canvas c,float x,float y,float w,float h,int color){p.setColor(color);c.drawRect(Math.round(x),Math.round(y),Math.round(x+w),Math.round(y+h),p);}
     Path path(float... xy){Path a=new Path();a.moveTo(xy[0],xy[1]);for(int i=2;i<xy.length;i+=2)a.lineTo(xy[i],xy[i+1]);a.close();return a;}
     void poly(Canvas c,int color,float... xy){p.setColor(color);c.drawPath(path(xy),p);}
