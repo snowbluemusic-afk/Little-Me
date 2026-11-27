@@ -10,7 +10,7 @@ public final class LittleWallpaper extends WallpaperService {
     private final class HouseEngine extends Engine {
         private final Handler handler=new Handler(Looper.getMainLooper());
         private boolean visible=false,ready=false; private Scene scene; private World world; private SharedPreferences prefs;private long lastSave;private final Runnable frame=this::render;
-        @Override public void onCreate(SurfaceHolder holder){super.onCreate(holder);prefs=getSharedPreferences("world_v2",MODE_PRIVATE);long now=System.currentTimeMillis();world=new World(System.nanoTime(),Math.min(now,prefs.getLong("time",now)));world.man.decode(prefs.getString("man",null),true);world.dog.decode(prefs.getString("dog",null),false);scene=new Scene(LittleWallpaper.this);setTouchEventsEnabled(false);}
+        @Override public void onCreate(SurfaceHolder holder){super.onCreate(holder);prefs=getSharedPreferences("world_v3",MODE_PRIVATE);long now=System.currentTimeMillis();world=new World(System.nanoTime(),Math.min(now,prefs.getLong("time",now)));world.man.decode(prefs.getString("man",null),true);world.dog.decode(prefs.getString("dog",null),false);scene=new Scene(LittleWallpaper.this);setTouchEventsEnabled(false);}
         @Override public void onVisibilityChanged(boolean v){visible=v;handler.removeCallbacks(frame);if(v&&ready)render();else save();}
         @Override public void onSurfaceChanged(SurfaceHolder holder,int format,int width,int height){super.onSurfaceChanged(holder,format,width,height);ready=true;handler.removeCallbacks(frame);if(visible)render();}
         @Override public void onSurfaceDestroyed(SurfaceHolder holder){ready=false;handler.removeCallbacks(frame);save();super.onSurfaceDestroyed(holder);}
