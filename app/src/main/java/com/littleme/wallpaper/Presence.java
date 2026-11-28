@@ -18,8 +18,9 @@ final class Presence {
  static int state(String s){return "home".equals(s)?World.HOME:"away".equals(s)?World.AWAY:World.UNKNOWN;}
  static String name(int s){return s==World.HOME?"home":s==World.AWAY?"away":"unknown";}
  static int get(Context c,String key){SharedPreferences p=prefs(c);long t=p.getLong(key+"_time",0);if(t<=0||System.currentTimeMillis()-t>TTL)return World.UNKNOWN;return p.getInt(key,World.UNKNOWN);}
- static int self(Context c){SharedPreferences p=prefs(c);int manual=p.getInt("self_manual",World.UNKNOWN);if(manual!=World.UNKNOWN)return manual;if(p.getBoolean("auto",false)&&allowed(c)){android.location.LocationManager lm=(android.location.LocationManager)c.getSystemService(Context.LOCATION_SERVICE);if(lm!=null&&lm.isLocationEnabled())return get(c,"local");}return get(c,"remote_self");}
- static void refreshLocal(Context c){SharedPreferences p=prefs(c);if(p.getBoolean("auto",false)&&allowed(c)&&get(c,"local")==World.UNKNOWN)register(c,null);}
+ static int self(Context c){SharedPreferences p=prefs(c);int manual=p.getInt("self_manual",World.UNKNOWN);if(manual!=World.UNKNOWN)return manual;if(p.getBoolean("auto",false)&&allowed(c)){android.location.LocationManager lm=(android.location.LocationManager)c.getSystemService(Context.LOCATION_SERVICE);if(lm!=null&&(Build.VERSION.SDK_INT<28||lm.isLocationEnabled()))return get(c,"local");}return get(c,"remote_self");}
+ static void refreshLocal(Context c){SharedPreferences p=prefs(c);if(p.getBoolean("auto",false)&&allowed(c)&&get(c,"local")==World.UNKNOWN)register(c,null);
+ long now=System.currentTimeMillis();if(p.getBoolean("sharing",false)&&now-p.getLong("last_heartbeat",0)>12L*3600*1000){int value=self(c);if(value!=World.UNKNOWN){p.edit().putLong("last_heartbeat",now).apply();publish(c,value);}}}
  static int partner(Context c){SharedPreferences p=prefs(c);if(!p.getBoolean("partner_consent",false))return World.UNKNOWN;return get(c,"remote_partner");}
  static void put(Context c,String key,int value){prefs(c).edit().putInt(key,value).putLong(key+"_time",System.currentTimeMillis()).apply();}
  static boolean allowed(Context c){return c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED&&(Build.VERSION.SDK_INT<29||c.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)==PackageManager.PERMISSION_GRANTED);}

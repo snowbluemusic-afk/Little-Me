@@ -61,7 +61,7 @@ public final class LittleWallpaper extends WallpaperService {
             SurfaceHolder holder=getSurfaceHolder();if(!holder.getSurface().isValid())return;
             if(!interactive())return;
             if(wakePending&&!visible)return;
-            long tick=SystemClock.elapsedRealtime();if(lastPresencePoll==0||tick-lastPresencePoll>=Presence.POLL||wakePending){lastPresencePoll=tick;Presence.refresh(LittleWallpaper.this);}Presence.apply(LittleWallpaper.this,world);
+            long tick=SystemClock.elapsedRealtime();if(lastPresencePoll==0||tick-lastPresencePoll>=Presence.POLL||wakePending){lastPresencePoll=tick;Presence.refreshLocal(LittleWallpaper.this);Presence.refresh(LittleWallpaper.this);}Presence.apply(LittleWallpaper.this,world);
             if(wakePending&&!isPreview()&&settings.getBoolean(WAKE_SCENE,true)){world.wakeScene(now,previousGroup);wakePending=false;save();}
             else {wakePending=false;world.advance(now);}
             Canvas c=null;try{c=holder.lockCanvas();if(c!=null)scene.draw(c,world,c.getWidth(),c.getHeight(),now);}
