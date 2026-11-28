@@ -19,8 +19,8 @@ public final class LittleWallpaper extends WallpaperService {
     private final class HouseEngine extends Engine {
         private final Handler handler=new Handler(Looper.getMainLooper());
         private boolean visible=false,ready=false,destroyed=false; private Scene scene; private World world; private SharedPreferences prefs,settings;
-        private long lastSave,lastError; private boolean wakePending=false,receiverRegistered=false; private int previousGroup=-1; private PowerManager power; private final Runnable frame=this::render;
-        private final SharedPreferences.OnSharedPreferenceChangeListener settingsListener=(sp,key)->{if(LIVELY.equals(key))handler.post(()->{if(!destroyed&&world!=null){world.setLively(settings.getBoolean(LIVELY,true));restart();}});};
+        private long lastSave,lastError,lastPresencePoll; private boolean wakePending=false,receiverRegistered=false; private int previousGroup=-1; private PowerManager power; private final Runnable frame=this::render;
+        private final SharedPreferences.OnSharedPreferenceChangeListener settingsListener=(sp,key)->{if(LIVELY.equals(key)||"household".equals(key))handler.post(()->{if(!destroyed&&world!=null){world.setLively(settings.getBoolean(LIVELY,true));world.setHousehold(settings.getBoolean("household",true));restart();}});};
         private final BroadcastReceiver screenReceiver=new BroadcastReceiver(){
             @Override public void onReceive(Context context,Intent intent){
                 if(destroyed||world==null)return;
@@ -35,7 +35,7 @@ public final class LittleWallpaper extends WallpaperService {
             super.onCreate(holder);prefs=getSharedPreferences("world_v34",MODE_PRIVATE);settings=getSharedPreferences(SETTINGS,MODE_PRIVATE);
             long now=System.currentTimeMillis();world=new World(System.nanoTime(),Math.min(now,prefs.getLong("time",now)));
             world.man.decode(prefs.getString("man",null),true);world.dog.decode(prefs.getString("dog",null),false);
-            world.setLively(settings.getBoolean(LIVELY,true));settings.registerOnSharedPreferenceChangeListener(settingsListener);
+            world.setHousehold(settings.getBoolean("household",true));world.maddie.decode(prefs.getString("maddie",null),true);world.restoreRotation(prefs.getString("rotation",null));world.setLively(settings.getBoolean(LIVELY,true));Presence.apply(LittleWallpaper.this,world);settings.registerOnSharedPreferenceChangeListener(settingsListener);
             scene=new Scene(LittleWallpaper.this);setTouchEventsEnabled(false);
             power=(PowerManager)getSystemService(Context.POWER_SERVICE);
             previousGroup=prefs.getInt("last_scene_group",world.visualGroup());wakePending=!isPreview();
@@ -53,7 +53,7 @@ public final class LittleWallpaper extends WallpaperService {
         @Override public void onSurfaceRedrawNeeded(SurfaceHolder holder){super.onSurfaceRedrawNeeded(holder);if(!destroyed&&ready){if(visible)restart();else drawOnce();}}
         @Override public void onSurfaceDestroyed(SurfaceHolder holder){ready=false;handler.removeCallbacks(frame);save();super.onSurfaceDestroyed(holder);}
         @Override public void onDestroy(){destroyed=true;visible=false;ready=false;handler.removeCallbacks(frame);if(settings!=null)settings.unregisterOnSharedPreferenceChangeListener(settingsListener);if(receiverRegistered){LittleWallpaper.this.unregisterReceiver(screenReceiver);receiverRegistered=false;}save();super.onDestroy();}
-        private void save(){if(world==null||prefs==null||isPreview())return;prefs.edit().putLong("time",world.time).putString("man",world.man.encode()).putString("dog",world.dog.encode()).putInt("last_scene_group",wakePending?previousGroup:world.visualGroup()).apply();}
+        private void save(){if(world==null||prefs==null||isPreview())return;prefs.edit().putLong("time",world.time).putString("man",world.man.encode()).putString("dog",world.dog.encode()).putString("maddie",world.maddie.encode()).putString("rotation",world.rotation()).putInt("last_scene_group",wakePending?previousGroup:world.visualGroup()).apply();}
         private void error(RuntimeException e){long now=SystemClock.elapsedRealtime();if(now-lastError>5000||lastError==0){lastError=now;Log.w("LittleMeWallpaper","Frame interrupted; will retry while visible",e);}}
         private void drawOnce(){
             if(world==null||scene==null)return;
@@ -61,6 +61,7 @@ public final class LittleWallpaper extends WallpaperService {
             SurfaceHolder holder=getSurfaceHolder();if(!holder.getSurface().isValid())return;
             if(!interactive())return;
             if(wakePending&&!visible)return;
+            long tick=SystemClock.elapsedRealtime();if(lastPresencePoll==0||tick-lastPresencePoll>=Presence.POLL||wakePending){lastPresencePoll=tick;Presence.refresh(LittleWallpaper.this);}Presence.apply(LittleWallpaper.this,world);
             if(wakePending&&!isPreview()&&settings.getBoolean(WAKE_SCENE,true)){world.wakeScene(now,previousGroup);wakePending=false;save();}
             else {wakePending=false;world.advance(now);}
             Canvas c=null;try{c=holder.lockCanvas();if(c!=null)scene.draw(c,world,c.getWidth(),c.getHeight(),now);}

@@ -35,7 +35,7 @@ jobs:
       - name: Test simulation
         run: |
           mkdir -p /tmp/littleme-test
-          javac -d /tmp/littleme-test app/src/main/java/com/littleme/wallpaper/World.java tests/WorldTest.java tests/WorldInteractionTest.java tests/WorldV3Test.java tests/WorldV31Test.java tests/WorldPaceTest.java tests/WorldWakeTest.java tests/WorldAnchorTest.java
+          javac -d /tmp/littleme-test app/src/main/java/com/littleme/wallpaper/World.java tests/WorldTest.java tests/WorldInteractionTest.java tests/WorldV3Test.java tests/WorldV31Test.java tests/WorldPaceTest.java tests/WorldWakeTest.java tests/WorldAnchorTest.java tests/HouseholdTest.java
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldInteractionTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldV3Test
@@ -43,6 +43,7 @@ jobs:
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldPaceTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldWakeTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldAnchorTest
+          java -cp /tmp/littleme-test com.littleme.wallpaper.HouseholdTest
       - run: gradle --no-daemon :app:assembleDebug
       - run: cp app/build/outputs/apk/debug/app-debug.apk LittleMe.apk
       - uses: actions/upload-artifact@v4
@@ -54,4 +55,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="build-${GITHUB_RUN_NUMBER}"
-          gh release create "$tag" LittleMe.apk --title "Little Me build ${GITHUB_RUN_NUMBER}" --notes 'v0.3.4: corrected kitchen/window floor anchors, lower sofa pose, two-arm stretch, and matching background color. Debug-signed.'
+          gh release create "$tag" LittleMe.apk --title "Little Me build ${GITHUB_RUN_NUMBER}" --notes 'v0.4.0 Little Us: household sprite, balanced scene rotation, opt-in home/away detection and optional relay. Debug-signed.'

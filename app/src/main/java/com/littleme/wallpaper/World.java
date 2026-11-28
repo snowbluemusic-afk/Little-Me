@@ -53,8 +53,8 @@ public final class World {
             case 1:case 2: options=new int[]{3,6,12,5,0};break;
             default: options=new int[]{0,1,2,3,5,6,7,11,12};break;
         }
-        if(household&&man.away&&!maddie.away&&maddie.job==4)options=new int[]{9};
-        if(household&&man.away&&maddie.away)options=new int[]{0,1,2,3,4,5,7,8,11};
+        if(household&&!maddie.away&&maddie.job==4&&man.job!=4)options=new int[]{9};
+        if(household&&man.away&&maddie.away){int prev=previousGroup>=40?previousGroup-40:-1;int currentDog=dog.job;options=Arrays.stream(new int[]{0,1,2,3,4,5,7,8,11}).filter(j->j!=prev&&j!=currentDog).toArray();}
         int d=balancedDog(options);
         int dest=(d==6||d==12)?companionNode(man.node):DOG[d].node;
         if(household&&man.away&&!maddie.away){if(d==6||d==12)dest=companionNode(maddie.node);if(d==9)dest=PET_SPOT;}
@@ -68,7 +68,7 @@ public final class World {
     int maddieNode(int job){switch(job){case 0:case 3:case 9:case 18:return M_SOFA;case 1:case 2:return man.node==SINK&&!man.away?M_RUG:M_SINK;case 5:case 11:case 13:return M_TABLE;case 6:return M_BED;case 7:return M_WINDOW;case 4:return M_RUG;default:return M_RUG;}}
     int pickMaddie(int previous){ArrayList<Integer> pool=new ArrayList<>();int min=Integer.MAX_VALUE;for(int i=0;i<maddieJobs.length;i++){int j=maddieJobs[i];if(j==maddie.job||20+sceneGroup(j)==previous)continue;if(j==4&&!man.away&&man.job==4)continue;if(maddieUse[i]<min){min=maddieUse[i];pool.clear();}if(maddieUse[i]==min)pool.add(i);}int i=pool.get(random.nextInt(pool.size()));maddieUse[i]++;return maddieJobs[i];}
     void wakeMaddie(long now,int previous){
-        if(maddiePresence==AWAY||(maddiePresence==UNKNOWN&&random.nextInt(6)==0)){placeForWake(maddie,8,DOOR,now);return;}
+        if(maddiePresence==AWAY||(maddiePresence==UNKNOWN&&random.nextInt(6)==0&&previous<40)){placeForWake(maddie,8,DOOR,now);return;}
         int j=pickMaddie(previous);placeForWake(maddie,j,maddieNode(j),now);
     }
     public void setHousehold(boolean enabled){if(household==enabled)return;household=enabled;if(enabled){maddie.away=false;maddie.until=time;}else{maddie.away=true;maddie.route.clear();}}
@@ -84,7 +84,7 @@ public final class World {
         if(maddiePresence==UNKNOWN&&!maddie.away&&random.nextInt(15)==0){maddie.lastJob=maddie.job;maddie.job=8;maddie.route.addAll(path(maddie.node,DOOR));maddie.dwell=45000;return;}
         if(maddie.away){maddie.away=false;maddie.x=POS[DOOR][0];maddie.y=POS[DOOR][1];maddie.node=DOOR;}
         int j=pickMaddie(-1);maddie.lastJob=maddie.job;maddie.job=j;maddie.dwell=duration(maddie,j,HUMAN[j],j==6&&night(now));maddie.route.addAll(path(maddie.node,maddieNode(j)));maddie.until=now+maddie.dwell;
-        if(j==4&&man.away&&dog.route.isEmpty())set(dog,9,PET_SPOT,now);
+        if(j==4&&man.job!=4&&dog.route.isEmpty())set(dog,9,PET_SPOT,now);
     }
     private void stepMaddie(long now,float dt){
         if(!household)return;
@@ -104,11 +104,11 @@ public final class World {
         if(demo)return Math.max(3500,Math.min(18000,d/12));
         if(!lively)return d;
         // A living wallpaper must be interesting during short lock-screen visits.
-        if(a==man&&index==6)return sleep?60000+random.nextInt(120001):30000+random.nextInt(30001);
+        if(a!=dog&&index==6)return sleep?60000+random.nextInt(120001):30000+random.nextInt(30001);
         if(a==man&&index==8)return 45000+random.nextInt(75001);
         if(a==dog&&(index==1||index==5||index==7))return 18000+random.nextInt(27001);
         if(a==dog&&index==8)return 4000+random.nextInt(4001);
-        return a==man?8000+random.nextInt(16001):5000+random.nextInt(13001);
+        return a!=dog?8000+random.nextInt(16001):5000+random.nextInt(13001);
     }
     private long livelyLimit(Actor a){if(a==man&&a.job==6)return 180000;if(a==man&&a.job==8)return 120000;if(a==dog&&sleeping(a))return 45000;return a==man?24000:18000;}
     public void setLively(boolean enabled){
@@ -120,7 +120,7 @@ public final class World {
     void choose(Actor a,long now){boolean human=a==man;Job[] jobs=human?HUMAN:DOG;boolean night=night(now);
         if(human&&selfPresence==AWAY){a.away=true;a.until=now+60000;return;}
         if(human&&a.away){a.away=false;set(a,16,LOUNGE,now);return;}
-        if(!human&&((man.job==4&&!man.away)||(household&&man.away&&!maddie.away&&maddie.job==4))){set(a,9,PET_SPOT,now);return;}
+        if(!human&&((man.job==4&&!man.away)||(household&&!maddie.away&&maddie.job==4&&man.job!=4))){set(a,9,PET_SPOT,now);return;}
         int[] weights=new int[jobs.length];int total=0;for(int i=0;i<jobs.length;i++){int w=jobs[i].weight;if(human&&i==6)w=night?(lively?24:55):2;if(human&&i==8&&(night||selfPresence==HOME))w=0;if(!human){if(man.away){if(i==6||i==10||i==12)w=0;if(i==2||i==1)w*=3;}else if(i==10){w=(man.job==0||man.job==3||man.job==9||man.job==18)?20:0;}else if(i==12){w=7;}else if(i==7&&man.job==6)w*=5;else if(i==6&&(man.job==1||man.job==2))w*=3;}if(!human&&night&&(i==1||i==5||i==7))w*=3;if(i==a.job)w=lively?0:w/4;if(lively&&w>0)w=Math.max(1,10/(1+(human?humanUse[i]:dogUse[i])));weights[i]=w;total+=w;}int roll=random.nextInt(total),j=0;for(;j<weights.length-1;j++){roll-=weights[j];if(roll<0)break;}(human?humanUse:dogUse)[j]++;int dest=jobs[j].node;if(!human&&(j==6||j==12))dest=companionNode(man.route.isEmpty()?man.node:man.route.peekLast());set(a,j,dest,now);
         if(human&&j==4&&!dog.away&&dog.route.isEmpty())set(dog,9,PET_SPOT,now);if(human&&j==8&&dog.route.isEmpty()&&random.nextBoolean())set(dog,2,DOOR,now);if(human&&j==6&&dog.route.isEmpty()&&random.nextBoolean())set(dog,7,FOOT,now);
     }
@@ -138,6 +138,6 @@ public final class World {
     public static boolean furniture(int n){return n==SOFA||n==SOFA_DOG||n==TABLE||n==BED||n==M_SOFA||n==M_TABLE||n==M_BED;}
     public static float progress(Actor a){if(a.route.isEmpty())return 1;int to=a.route.peek();float[] start=POS[a.node],end=POS[to];float total=(float)Math.hypot(end[0]-start[0],end[1]-start[1]);return total<.01f?1:Math.max(0,Math.min(1,1-(float)Math.hypot(end[0]-a.x,end[1]-a.y)/total));}
     public String motion(Actor a){if(a.route.isEmpty())return name(a);int to=a.route.peek(),kind=transition(a.node,to);switch(kind){case JUMP_SOFA:return to==SOFA_DOG?"Jumping onto sofa":"Jumping down";case SIT_SOFA:return to==SOFA?"Sitting down":"Standing up";case SIT_TABLE:return to==TABLE?"Taking a seat":"Leaving the table";case BED_TRANSFER:return to==BED?"Getting into bed":"Getting up";default:return "Walking";}}
-    public void step(Actor a,long now,float dt){if(!a.route.isEmpty()){int n=a.route.peek();float dx=POS[n][0]-a.x,dy=POS[n][1]-a.y,d=(float)Math.hypot(dx,dy),s=dt*(a==dog?(a.job==8?65:36):24);int transfer=transition(a.node,n);if(transfer!=WALK){float duration=transfer==JUMP_SOFA?.65f:transfer==BED_TRANSFER?1.3f:.9f;float total=(float)Math.hypot(POS[n][0]-POS[a.node][0],POS[n][1]-POS[a.node][1]);s=dt*total/duration;}if(Math.abs(dx)>0.1)a.face=dx>0?1:-1;if(d<=s){a.x=POS[n][0];a.y=POS[n][1];a.node=n;a.route.remove();if(a.route.isEmpty()){arrive(a,now);if(a==dog&&man.job==4&&!man.away&&a.job!=9)set(a,9,PET_SPOT,now);}}else{a.x+=dx*s/d;a.y+=dy*s/d;}}else if(a==dog&&(a.job==6||a.job==12)&&!man.away&&companionNode(man.route.isEmpty()?man.node:man.route.peekLast())!=a.node&&now<a.until){int target=companionNode(man.route.isEmpty()?man.node:man.route.peekLast());a.route.addAll(path(a.node,target));}else if(now>=a.until||(a==dog&&a.job==9&&(man.job!=4||man.away)&&!(household&&man.away&&!maddie.away&&maddie.job==4)))choose(a,now);}
+    public void step(Actor a,long now,float dt){if(!a.route.isEmpty()){int n=a.route.peek();float dx=POS[n][0]-a.x,dy=POS[n][1]-a.y,d=(float)Math.hypot(dx,dy),s=dt*(a==dog?(a.job==8?65:36):24);int transfer=transition(a.node,n);if(transfer!=WALK){float duration=transfer==JUMP_SOFA?.65f:transfer==BED_TRANSFER?1.3f:.9f;float total=(float)Math.hypot(POS[n][0]-POS[a.node][0],POS[n][1]-POS[a.node][1]);s=dt*total/duration;}if(Math.abs(dx)>0.1)a.face=dx>0?1:-1;if(d<=s){a.x=POS[n][0];a.y=POS[n][1];a.node=n;a.route.remove();if(a.route.isEmpty()){arrive(a,now);if(a==dog&&man.job==4&&!man.away&&a.job!=9)set(a,9,PET_SPOT,now);}}else{a.x+=dx*s/d;a.y+=dy*s/d;}}else if(a==dog&&(a.job==6||a.job==12)&&!man.away&&companionNode(man.route.isEmpty()?man.node:man.route.peekLast())!=a.node&&now<a.until){int target=companionNode(man.route.isEmpty()?man.node:man.route.peekLast());a.route.addAll(path(a.node,target));}else if(now>=a.until||(a==dog&&a.job==9&&(man.job!=4||man.away)&&!(household&&!maddie.away&&maddie.job==4&&man.job!=4)))choose(a,now);}
     public void advance(long now){if(now<time){time=now;man.until=now;dog.until=now;maddie.until=now;return;}if(now-time>86400000L){time=now-86400000L;man.until=time;dog.until=time;maddie.until=time;}while(time<now){boolean moving=(household&&!maddie.route.isEmpty())||!man.route.isEmpty()||!dog.route.isEmpty()||(dog.job==6||dog.job==12)&&!man.away&&companionNode(man.node)!=dog.node;long next=moving?Math.min(now,time+100):Math.min(now,Math.max(time+1,Math.min(Math.min(man.until,dog.until),household?maddie.until:Long.MAX_VALUE)));float dt=(next-time)/1000f;time=next;step(man,time,dt);stepMaddie(time,dt);step(dog,time,dt);}}
 }
