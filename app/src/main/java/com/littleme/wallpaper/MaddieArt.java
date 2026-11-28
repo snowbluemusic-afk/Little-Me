@@ -17,7 +17,7 @@ final class MaddieArt {
  static void draw(Canvas c,World w,World.Actor a,long now){
   float x=a.x,y=a.y;boolean moving=!a.route.isEmpty(),sit=!moving&&(a.node==World.M_SOFA||a.node==World.M_TABLE),sleep=!moving&&a.job==6,pet=!moving&&a.job==4,back=a.node==World.M_SOFA||a.node==World.M_SINK||a.node==World.M_WINDOW;
   if(moving){int next=a.route.peek();back=World.POS[next][1]<y-3;if(World.transition(a.node,next)!=World.WALK){float t=World.progress(a);sit=(next==World.M_SOFA||next==World.M_TABLE)?t>.5:a.node==World.M_SOFA||a.node==World.M_TABLE?t<.5:false;}}
-  if(sleep){c.save();c.translate(272,432);c.rotate(-25);c.scale(.40f,.40f);hair(c,false);c.restore();poly(c,0xffa99ab1,270,433,289,444,261,458,242,448);poly(c,0xffc4b4ca,270,432,287,443,261,456,244,447);return;}
+  if(sleep){c.save();c.translate(272,432);c.rotate(-25);c.scale(.40f,.40f);c.translate(0,45);hair(c,false);c.restore();poly(c,0xffa99ab1,270,433,289,444,261,458,242,448);poly(c,0xffc4b4ca,270,432,287,443,261,456,244,447);return;}
   P.setColor(0x49302529);if(!sit)c.drawOval(x-10,y-2,x+10,y+3,P);
   int frame=(int)(now/130%4),stride=moving?(frame==0?-3:frame==2?3:0):0;
   c.save();c.translate(Math.round(x),Math.round(y));c.scale(a.face*(pet?.91f:.91f),pet?.73f:sit?.68f:.91f);

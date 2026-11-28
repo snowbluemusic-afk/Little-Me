@@ -44,6 +44,8 @@ jobs:
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldWakeTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.WorldAnchorTest
           java -cp /tmp/littleme-test com.littleme.wallpaper.HouseholdTest
+      - name: Test private relay
+        run: cd relay && python3 -m unittest -v test_relay
       - run: gradle --no-daemon :app:assembleDebug
       - run: cp app/build/outputs/apk/debug/app-debug.apk LittleMe.apk
       - uses: actions/upload-artifact@v4

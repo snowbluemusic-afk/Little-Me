@@ -7,6 +7,6 @@ public final class PresenceReceiver extends BroadcastReceiver {
   if(!"com.littleme.HOME_FENCE".equals(i.getAction())||!Presence.prefs(c).getBoolean("auto",false)||!Presence.allowed(c))return;
   GeofencingEvent event=GeofencingEvent.fromIntent(i);if(event==null)return;
   int state=World.UNKNOWN;if(!event.hasError()){int t=event.getGeofenceTransition();if(t==Geofence.GEOFENCE_TRANSITION_ENTER)state=World.HOME;else if(t==Geofence.GEOFENCE_TRANSITION_EXIT)state=World.AWAY;}
-  Presence.put(c,"local",state);Presence.publish(c,Presence.self(c));
+  Presence.put(c,"local",state);PendingResult result=goAsync();Presence.publish(c,Presence.self(c),result::finish);
  }
 }

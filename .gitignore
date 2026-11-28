@@ -2,3 +2,7 @@
 **/build/
 local.properties
 *.apk
+
+relay/*.sqlite3*
+relay/.env
+relay/__pycache__/

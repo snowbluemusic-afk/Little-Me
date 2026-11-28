@@ -69,9 +69,16 @@ public final class World {
     int pickMaddie(int previous){ArrayList<Integer> pool=new ArrayList<>();int min=Integer.MAX_VALUE;for(int i=0;i<maddieJobs.length;i++){int j=maddieJobs[i];if(j==maddie.job||20+sceneGroup(j)==previous)continue;if(j==4&&!man.away&&man.job==4)continue;if(maddieUse[i]<min){min=maddieUse[i];pool.clear();}if(maddieUse[i]==min)pool.add(i);}int i=pool.get(random.nextInt(pool.size()));maddieUse[i]++;return maddieJobs[i];}
     void wakeMaddie(long now,int previous){
         if(maddiePresence==AWAY||(maddiePresence==UNKNOWN&&random.nextInt(6)==0&&previous<40)){placeForWake(maddie,8,DOOR,now);return;}
-        int j=pickMaddie(previous);placeForWake(maddie,j,maddieNode(j),now);
+        int j=pickMaddie(previous);
+        // Sometimes share the current room or activity. The independent rotation still runs on other wakes.
+        if(!man.away&&random.nextInt(3)==0){
+            if(man.node==SOFA)j=9;
+            else if(man.node==TABLE)j=man.job==5?5:13;
+            else if(man.node==BED)j=6;
+        }
+        placeForWake(maddie,j,maddieNode(j),now);
     }
-    public void setHousehold(boolean enabled){if(household==enabled)return;household=enabled;if(enabled){maddie.away=false;maddie.until=time;}else{maddie.away=true;maddie.route.clear();}}
+    public void setHousehold(boolean enabled){if(household==enabled)return;household=enabled;if(enabled){maddie.away=maddiePresence==AWAY;maddie.until=time;}else{maddie.away=true;maddie.route.clear();}}
     public void setPresence(int self,int partner){
         if(self!=selfPresence){selfPresence=self;if(self==AWAY)placeForWake(man,8,DOOR,time);else if(self==HOME&&(man.away||man.job==8)){placeForWake(man,16,DOOR,time);set(man,16,LOUNGE,time);greet();}}
         if(partner!=maddiePresence){maddiePresence=partner;if(household){if(partner==AWAY)placeForWake(maddie,8,DOOR,time);else if(partner==HOME&&maddie.away){placeForWake(maddie,16,DOOR,time);maddie.route.addAll(path(DOOR,M_RUG));greet();}}}
@@ -110,10 +117,10 @@ public final class World {
         if(a==dog&&index==8)return 4000+random.nextInt(4001);
         return a!=dog?8000+random.nextInt(16001):5000+random.nextInt(13001);
     }
-    private long livelyLimit(Actor a){if(a==man&&a.job==6)return 180000;if(a==man&&a.job==8)return 120000;if(a==dog&&sleeping(a))return 45000;return a==man?24000:18000;}
+    private long livelyLimit(Actor a){if(a!=dog&&a.job==6)return 180000;if(a==man&&a.job==8)return 120000;if(a==dog&&sleeping(a))return 45000;return a!=dog?24000:18000;}
     public void setLively(boolean enabled){
         if(lively==enabled)return;lively=enabled;
-        if(enabled){for(Actor a:new Actor[]{man,dog}){long cap=livelyLimit(a);a.dwell=Math.min(a.dwell,cap);if(a.route.isEmpty())a.until=Math.min(a.until,time+cap);}}
+        if(enabled){for(Actor a:new Actor[]{man,dog,maddie}){long cap=livelyLimit(a);a.dwell=Math.min(a.dwell,cap);if(a.route.isEmpty())a.until=Math.min(a.until,time+cap);}}
     }
     private void set(Actor a,int j,int dest,long now){Job job=(a==man?HUMAN:DOG)[j];a.lastJob=a.job;a.job=j;a.dwell=duration(a,j,job,a==man&&j==6&&night(now));a.route.clear();a.route.addAll(path(a.node,dest));if(a==dog&&j==8){a.route.add(RUG_LEFT);a.route.add(RUG);a.route.add(PET_SPOT);a.route.add(RUG);}if(a.route.isEmpty())arrive(a,now);else a.until=now+a.dwell;}
     private void arrive(Actor a,long now){a.until=now+Math.max(1000,a.dwell);if(a==man&&a.job==8)a.away=true;}
