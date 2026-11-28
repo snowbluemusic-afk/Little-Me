@@ -12,23 +12,22 @@ final class Scene {
       c.drawColor(bg.getPixel(0,0));float s=Math.min(width/309f,height/553f),left=(width-309*s)/2,top=height-553*s;
       c.save();c.translate(left,top);c.scale(s,s);p.setColor(Color.WHITE);dst.set(0,0,309,553);c.drawBitmap(bg,null,dst,p);environment(c,w,now);
       // Paint upper-room actors before foreground objects, then lower room. Feet always sort in depth order.
-      World.Actor first=w.man.y<=w.dog.y?w.man:w.dog,second=first==w.man?w.dog:w.man;
-      layeredActor(c,w,first,now);layeredActor(c,w,second,now);
+      World.Actor[] actors=w.household?new World.Actor[]{w.man,w.maddie,w.dog}:new World.Actor[]{w.man,w.dog};Arrays.sort(actors,Comparator.comparingDouble(a->a.y));for(World.Actor a:actors)layeredActor(c,w,a,now);
       if(shade>0){p.setColor((shade<<24)|0x25304d);c.drawRect(0,0,309,553,p);}c.restore();
       if(shade>0){p.setColor((shade<<24)|0x25304d);if(top>0)c.drawRect(0,0,width,top,p);if(left>0){c.drawRect(0,top,left,height,p);c.drawRect(width-left,top,width,height,p);}}
     }
     void layeredActor(Canvas c,World w,World.Actor a,long now){
-      if(a==w.man&&a.away)return;
+      if(a.away)return;
       // Clip only this actor; repainting the background here used to erase the other character.
-      boolean sofa=a.node==World.SOFA||a.node==World.SOFA_DOG||(!a.route.isEmpty()&&(a.route.peek()==World.SOFA||a.route.peek()==World.SOFA_DOG));
-      boolean table=a.node==World.TABLE||(!a.route.isEmpty()&&a.route.peek()==World.TABLE);
+      boolean sofa=a.node==World.M_SOFA||a.node==World.SOFA||a.node==World.SOFA_DOG||(!a.route.isEmpty()&&(a.route.peek()==World.SOFA||a.route.peek()==World.SOFA_DOG));
+      boolean table=a.node==World.M_TABLE||a.node==World.TABLE||(!a.route.isEmpty()&&a.route.peek()==World.TABLE);
       c.save();
       if(sofa||a.y<323&&a.x>=55&&a.x<=160)c.clipOutPath(path(55,321,76,330,82,315,151,284,155,288,155,325,83,360,55,347));
       if(a.y<324&&a.x>143&&a.x<200)c.clipOutPath(path(158,281,171,276,181,283,182,295,174,306,173,318,161,324,151,318,150,303,147,293));
       if(table||a.y<493&&a.y>445&&a.x<160)c.clipOutPath(path(49,483,56,477,83,470,112,470,132,477,143,490,137,503,116,514,86,515,61,507,48,495));
-      boolean bed=a==w.man&&(a.node==World.BED||(!a.route.isEmpty()&&a.route.peek()==World.BED));
+      boolean bed=a==w.maddie&&a.node==World.M_BED||a==w.man&&(a.node==World.BED||(!a.route.isEmpty()&&a.route.peek()==World.BED));
       if(!bed&&a.y<485&&a.x>200&&a.y>404)c.clipOutPath(path(224,448,252,430,283,436,309,454,309,498,263,525,218,498,215,463));
-      actor(c,w,a,now);
+      if(a==w.maddie)MaddieArt.draw(c,w,a,now);else actor(c,w,a,now);
       c.restore();
       if(a==w.man&&a.route.isEmpty()&&a.node==World.TABLE)tableAction(c,a.job,now);
     }
@@ -67,7 +66,7 @@ final class Scene {
         case 10: stretch(c,x,y,now);break;
         default: shadow(c,x,y,24);sprite(c,walk[1],x,y,65,face,1+(float)Math.sin(now/550.0)*.012f);break;
       }}else{
-        if(w.petting()){sprite(c,poses.get("dogbelly"),x,y,27,1,1+(float)Math.sin(now/280.0)*.035f);return;}
+        if(w.petting()||w.maddiePetting()){sprite(c,poses.get("dogbelly"),x,y,27,1,1+(float)Math.sin(now/280.0)*.035f);return;}
         if(w.sleeping(a)){if(a.node==World.SOFA_DOG||a.node==World.SOFA){x=World.POS[World.SOFA_DOG][0];y=World.POS[World.SOFA_DOG][1];}else if(a.node==World.FOOT){x=a.x;y=a.y;}shadow(c,x,y,15);sprite(c,poses.get("dogsleep"),x,y,15,1,1+(float)Math.sin(now/470.0)*.025f);if(now/550%4==0)zzz(c,x+8,y-24);return;}
         if(a.job==0){float off=(float)Math.sin(now/430.0)*6;shadow(c,x+off,y,15);sprite(c,poses.get("dogplay"),x+off,y,28,face,1);ball(c,x+face*(18+(float)Math.sin(now/430.0)*6),y-1);return;}
         if(a.job==8){float off=(float)Math.sin(now/180.0)*6;sprite(c,dogwalk[phase],x+off,y,27,face,1);return;}
